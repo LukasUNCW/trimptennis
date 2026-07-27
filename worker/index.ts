@@ -79,11 +79,18 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
   const program = lookupProgram(body.program);
   if (!program) return json({ error: 'Unknown program.' }, 400);
 
-  const parent_name = str(body.parent_name, 100);
   const parent_email = str(body.parent_email, 200);
   const player_name = str(body.player_name, 100);
-  if (!parent_name || !parent_email || !parent_email.includes('@') || !player_name) {
-    return json({ error: "Parent name, a valid email, and the player's name are required." }, 400);
+  if (!player_name || !parent_email || !parent_email.includes('@')) {
+    return json({ error: 'A name and a valid email address are required.' }, 400);
+  }
+
+  // Adults enrol themselves, so a guardian is required only for the youth
+  // programs — and is discarded outright on a self-enrol program rather than
+  // trusted from the request body.
+  const parent_name = program.selfEnroll ? null : str(body.parent_name, 100);
+  if (!program.selfEnroll && !parent_name) {
+    return json({ error: 'A parent or guardian name is required.' }, 400);
   }
 
   const age_group = str(body.age_group, 40);

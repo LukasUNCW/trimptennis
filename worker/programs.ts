@@ -23,6 +23,12 @@ export interface Program {
    * the enrollment email has to say so or the follow-up gets forgotten.
    */
   autoDraftAfterFirstMonth?: boolean;
+  /**
+   * Adult programs: the person signing up IS the player, so no guardian is
+   * collected and the form asks for their own name. parent_name stays null on
+   * these rows; parent_email is still the contact address.
+   */
+  selfEnroll?: boolean;
 }
 
 export const PROGRAMS: Record<string, Program> = {
@@ -50,7 +56,8 @@ export const PROGRAMS: Record<string, Program> = {
   adult: {
     name: 'Adult Programs',
     ageGroups: ['Adult'],
-    payUrl: null
+    payUrl: null,
+    selfEnroll: true
   }
 };
 
@@ -68,5 +75,6 @@ export const listPrograms = () =>
     slug,
     name: p.name,
     ageGroups: p.ageGroups,
-    payable: p.payUrl !== null
+    payable: p.payUrl !== null,
+    selfEnroll: p.selfEnroll === true
   }));

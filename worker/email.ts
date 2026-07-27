@@ -47,7 +47,9 @@ export async function notifyEnrollment(env: Env, e: {
     <table style="font-family:sans-serif;font-size:14px;border-collapse:collapse">
       ${row('Program', esc(e.program))}
       ${row('Player', `${esc(e.player_name)} (${esc(e.age_group)})`)}
-      ${row('Parent', `${esc(e.parent_name)} — ${esc(e.parent_email)}`)}
+      ${e.parent_name
+        ? row('Parent', `${esc(e.parent_name)} — ${esc(e.parent_email)}`)
+        : row('Contact', esc(e.parent_email))}
       ${row('Phone', esc(e.phone))}
       ${e.notes ? row('Notes', esc(e.notes)) : ''}
       ${row('Payment', 'Sent to the QuickBooks payment link — confirm in QuickBooks that it arrived.')}
