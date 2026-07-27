@@ -79,14 +79,10 @@ header.nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.94);bac
 .hero-ctas{display:flex;gap:14px;flex-wrap:wrap}
 .hero-note{margin-top:22px;font-family:var(--font-mono);font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:10px}
 .hero-note::before{content:"";width:34px;height:2px;background:var(--gold)}
-.hero-visual{position:relative;aspect-ratio:4/3.4;border-radius:20px;background:var(--teal);overflow:hidden}
-.hero-visual .court-lines{position:absolute;inset:0}
-.hero-visual .court-lines i{position:absolute;background:rgba(255,255,255,.55)}
-.hero-visual .l1{left:9%;top:0;bottom:0;width:2px}
-.hero-visual .l2{right:9%;top:0;bottom:0;width:2px}
-.hero-visual .l3{left:9%;right:9%;top:32%;height:2px}
-.hero-visual .l4{left:50%;top:32%;bottom:0;width:2px}
-.hero-visual .photo-hint{position:absolute;inset:0;display:grid;place-items:center;color:rgba(255,255,255,.85);font-family:var(--font-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;text-align:center;padding:20px}
+/* 3/2 matches the ball-crew photo, so nobody gets cropped out of the team shot */
+.hero-visual{position:relative;aspect-ratio:3/2;border-radius:20px;background:var(--teal);overflow:hidden}
+.hero-visual picture,.hero-visual img{display:block;width:100%;height:100%}
+.hero-visual img{object-fit:cover}
 .hero-chip{position:absolute;left:20px;bottom:20px;background:#fff;border-radius:12px;padding:14px 18px;box-shadow:0 12px 30px rgba(10,34,64,.18);max-width:250px}
 .hero-chip b{display:block;font-size:14px;color:var(--navy)}
 .hero-chip span{font-size:12.5px;color:var(--muted)}
@@ -143,6 +139,9 @@ section{padding:84px 0}
 .coach-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
 .coach-card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column}
 .coach-photo{aspect-ratio:1/1;background:linear-gradient(160deg,#C7D3E2,#93A6BF);display:grid;place-items:center;color:var(--navy);font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+/* top-weighted so the square crop keeps faces, not torsos */
+.coach-photo picture,.coach-photo img{display:block;width:100%;height:100%}
+.coach-photo img{object-fit:cover;object-position:center top}
 .coach-body{padding:20px 20px 22px}
 .coach-body .role{font-family:var(--font-mono);font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--teal);display:block;margin-bottom:6px;min-height:30px}
 .coach-body h3{font-size:18px;font-weight:800;color:var(--navy);margin-bottom:8px}
@@ -263,8 +262,16 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
       <div class="hero-note rise d3">Free trial for all kids clinics</div>
     </div>
     <div class="hero-visual rise d2">
-      <div class="court-lines"><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i></div>
-      <div class="photo-hint">Hero photo<br>players on court</div>
+      <picture>
+        <source type="image/webp"
+                srcset="images/ball-crew-2025-800.webp 800w, images/ball-crew-2025-1600.webp 1600w"
+                sizes="(max-width:980px) calc(100vw - 56px), 507px">
+        <img src="images/ball-crew-2025-800.jpg"
+             srcset="images/ball-crew-2025-800.jpg 800w, images/ball-crew-2025-1600.jpg 1600w"
+             sizes="(max-width:980px) calc(100vw - 56px), 507px"
+             width="1600" height="1067" loading="eager" fetchpriority="high"
+             alt="The academy's 2025 ball crew on court at the Charlotte Invitational with Carlos Alcaraz and Frances Tiafoe.">
+      </picture>
       <div class="hero-chip">
         <b>2025 ball crew — Charlotte Invitational</b>
         <span>On court with Tiafoe, Alcaraz, Keys &amp; Stephens</span>
@@ -361,7 +368,18 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
     </div>
     <div class="coach-grid">
       <div class="coach-card">
-        <div class="coach-photo">Photo</div>
+        <div class="coach-photo">
+          <picture>
+            <source type="image/webp"
+                    srcset="images/staff/logan-trimp-320.webp 320w, images/staff/logan-trimp-640.webp 640w"
+                    sizes="(max-width:560px) calc(100vw - 56px), (max-width:980px) calc((100vw - 78px) / 2), 264px">
+            <img src="images/staff/logan-trimp-320.jpg"
+                 srcset="images/staff/logan-trimp-320.jpg 320w, images/staff/logan-trimp-640.jpg 640w"
+                 sizes="(max-width:560px) calc(100vw - 56px), (max-width:980px) calc((100vw - 78px) / 2), 264px"
+                 width="640" height="837" loading="lazy"
+                 alt="Logan Trimp on court with academy players.">
+          </picture>
+        </div>
         <div class="coach-body">
           <span class="role">Head tennis professional · On-court performance</span>
           <h3>Logan Trimp</h3>
@@ -369,7 +387,13 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
         </div>
       </div>
       <div class="coach-card">
-        <div class="coach-photo">Photo</div>
+        <div class="coach-photo">
+          <picture>
+            <source type="image/webp" srcset="images/staff/mait-dubois-200.webp">
+            <img src="images/staff/mait-dubois-200.jpg" width="200" height="275" loading="lazy"
+                 alt="Mait DuBois, UNCW men's tennis coach.">
+          </picture>
+        </div>
         <div class="coach-body">
           <span class="role">UNCW men's coach · Elite camp director</span>
           <h3>Mait DuBois</h3>
@@ -377,7 +401,18 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
         </div>
       </div>
       <div class="coach-card">
-        <div class="coach-photo">Photo</div>
+        <div class="coach-photo">
+          <picture>
+            <source type="image/webp"
+                    srcset="images/staff/john-trimp-320.webp 320w, images/staff/john-trimp-640.webp 640w"
+                    sizes="(max-width:560px) calc(100vw - 56px), (max-width:980px) calc((100vw - 78px) / 2), 264px">
+            <img src="images/staff/john-trimp-320.jpg"
+                 srcset="images/staff/john-trimp-320.jpg 320w, images/staff/john-trimp-640.jpg 640w"
+                 sizes="(max-width:560px) calc(100vw - 56px), (max-width:980px) calc((100vw - 78px) / 2), 264px"
+                 width="640" height="738" loading="lazy"
+                 alt="John Trimp, director of operations.">
+          </picture>
+        </div>
         <div class="coach-body">
           <span class="role">Director of operations · Player development</span>
           <h3>John Trimp</h3>
@@ -385,7 +420,13 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
         </div>
       </div>
       <div class="coach-card">
-        <div class="coach-photo">Photo</div>
+        <div class="coach-photo">
+          <picture>
+            <source type="image/webp" srcset="images/staff/taylor-vaughn-200.webp">
+            <img src="images/staff/taylor-vaughn-200.jpg" width="200" height="275" loading="lazy"
+                 alt="Taylor Vaughn, UNCW associate men's tennis coach.">
+          </picture>
+        </div>
         <div class="coach-body">
           <span class="role">UNCW associate men's coach · HS elite pro</span>
           <h3>Taylor Vaughn</h3>

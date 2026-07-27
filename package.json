@@ -6,11 +6,13 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "images": "node scripts/optimize-images.mjs",
     "db:schema": "wrangler d1 execute trimptennis-db --remote --file=./schema.sql",
     "db:schema:local": "wrangler d1 execute trimptennis-db --local --file=./schema.sql"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260722.1",
+    "sharp": "^0.35.3",
     "typescript": "^5.5.0",
     "wrangler": "^4.0.0"
   }
