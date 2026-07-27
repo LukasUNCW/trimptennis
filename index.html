@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seahawks Tennis Academy — Wilmington, NC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800;900&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0A2240;
+  --navy-2:#0E2C52;
+  --teal:#077A78;
+  --teal-dark:#055D5B;
+  --gold:#F5B72E;
+  --sand:#F6F5F0;
+  --white:#FFFFFF;
+  --ink:#15263D;
+  --muted:#5A6B80;
+  --line:rgba(10,34,64,.12);
+  --radius:14px;
+  --font-display:"Archivo",system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:var(--font-display);color:var(--ink);background:var(--white);line-height:1.6;font-size:16px}
+img{max-width:100%;display:block}
+a{color:inherit}
+.wrap{max-width:1180px;margin:0 auto;padding:0 28px}
+.eyebrow{font-family:var(--font-mono);font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+.btn{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:15px;text-decoration:none;padding:14px 26px;border-radius:999px;transition:transform .15s ease,background .15s ease;border:2px solid transparent}
+.btn:hover{transform:translateY(-1px)}
+.btn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.btn-teal{background:var(--teal);color:#fff}
+.btn-teal:hover{background:var(--teal-dark)}
+.btn-gold{background:var(--gold);color:var(--navy)}
+.btn-gold:hover{background:#ffc94d}
+.btn-ghost{border-color:var(--navy);color:var(--navy)}
+.btn-ghost:hover{background:var(--navy);color:#fff}
+.btn-white{background:#fff;color:var(--teal-dark)}
+
+/* utility bar */
+.utility{background:var(--navy);color:#B9C6D9;font-size:13px}
+.utility .wrap{display:flex;justify-content:space-between;align-items:center;min-height:38px}
+.utility a{color:#DDE6F2;text-decoration:none}
+.utility a:hover{color:var(--gold)}
+.utility .left,.utility .right{display:flex;gap:22px;align-items:center}
+
+/* nav */
+header.nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.nav .wrap{display:flex;align-items:center;justify-content:space-between;min-height:76px}
+.brand{display:flex;align-items:center;gap:12px;text-decoration:none}
+.brand-mark{width:44px;height:44px;border-radius:50%;background:var(--teal);color:#fff;display:grid;place-items:center;font-weight:900;font-size:20px;letter-spacing:-.02em;position:relative;overflow:hidden}
+.brand-mark::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid var(--gold);transform:scale(.78)}
+.brand-name{line-height:1.15}
+.brand-name b{display:block;font-size:17px;font-weight:800;color:var(--navy);letter-spacing:-.01em}
+.brand-name span{font-family:var(--font-mono);font-size:10.5px;font-weight:600;letter-spacing:.16em;color:var(--muted);text-transform:uppercase}
+.nav-links{display:flex;gap:30px;align-items:center;list-style:none}
+.nav-links a{text-decoration:none;font-weight:600;font-size:15px;color:var(--navy)}
+.nav-links a:hover{color:var(--teal)}
+.nav-cta{display:flex;gap:12px;align-items:center}
+.nav-cta .btn{padding:11px 22px;font-size:14px}
+
+/* announcement */
+.announce{background:var(--gold);color:var(--navy)}
+.announce .wrap{display:flex;justify-content:center;align-items:center;gap:14px;min-height:46px;font-weight:700;font-size:14.5px;flex-wrap:wrap;text-align:center}
+.announce .tag{font-family:var(--font-mono);font-size:11px;font-weight:600;letter-spacing:.12em;background:var(--navy);color:var(--gold);padding:3px 10px;border-radius:999px}
+.announce a{color:var(--navy)}
+
+/* hero */
+.hero{background:var(--sand);border-bottom:1px solid var(--line);overflow:hidden}
+.hero .wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center;padding-top:72px;padding-bottom:80px}
+.hero h1{font-size:clamp(38px,5vw,60px);font-weight:900;line-height:1.04;letter-spacing:-.025em;color:var(--navy);margin:18px 0 20px}
+.hero h1 .accent{color:var(--teal)}
+.hero p.lede{font-size:18px;color:var(--muted);max-width:52ch;margin-bottom:32px}
+.hero .eyebrow{color:var(--teal)}
+.hero-ctas{display:flex;gap:14px;flex-wrap:wrap}
+.hero-note{margin-top:22px;font-family:var(--font-mono);font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:10px}
+.hero-note::before{content:"";width:34px;height:2px;background:var(--gold)}
+.hero-visual{position:relative;aspect-ratio:4/3.4;border-radius:20px;background:var(--teal);overflow:hidden}
+.hero-visual .court-lines{position:absolute;inset:0}
+.hero-visual .court-lines i{position:absolute;background:rgba(255,255,255,.55)}
+.hero-visual .l1{left:9%;top:0;bottom:0;width:2px}
+.hero-visual .l2{right:9%;top:0;bottom:0;width:2px}
+.hero-visual .l3{left:9%;right:9%;top:32%;height:2px}
+.hero-visual .l4{left:50%;top:32%;bottom:0;width:2px}
+.hero-visual .photo-hint{position:absolute;inset:0;display:grid;place-items:center;color:rgba(255,255,255,.85);font-family:var(--font-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;text-align:center;padding:20px}
+.hero-chip{position:absolute;left:20px;bottom:20px;background:#fff;border-radius:12px;padding:14px 18px;box-shadow:0 12px 30px rgba(10,34,64,.18);max-width:250px}
+.hero-chip b{display:block;font-size:14px;color:var(--navy)}
+.hero-chip span{font-size:12.5px;color:var(--muted)}
+
+/* section scaffolding */
+section{padding:84px 0}
+.sec-head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:44px;flex-wrap:wrap}
+.sec-head .eyebrow{color:var(--teal);display:block;margin-bottom:10px}
+.sec-head h2{font-size:clamp(28px,3.4vw,40px);font-weight:800;letter-spacing:-.02em;color:var(--navy);line-height:1.1}
+.sec-head .more{font-weight:700;font-size:15px;color:var(--teal);text-decoration:none;white-space:nowrap}
+.sec-head .more:hover{text-decoration:underline}
+
+/* programs */
+.programs{background:#fff}
+.prog-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.prog-card{position:relative;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;text-decoration:none;display:flex;flex-direction:column;transition:transform .18s ease,box-shadow .18s ease;background:#fff}
+.prog-card:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(10,34,64,.12)}
+.prog-card:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.prog-media{aspect-ratio:16/10;background:var(--navy-2);position:relative}
+.prog-media::before,.prog-media::after{content:"";position:absolute;background:rgba(255,255,255,.4)}
+.prog-media::before{left:18px;top:0;bottom:0;width:2px}
+.prog-media::after{left:18px;bottom:26px;height:2px;width:46%}
+.prog-media .photo-hint{position:absolute;inset:0;display:grid;place-items:center;color:rgba(255,255,255,.65);font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.prog-media.m1{background:var(--teal)}
+.prog-media.m2{background:var(--navy-2)}
+.prog-media.m3{background:linear-gradient(0deg,var(--navy),var(--navy));position:relative}
+.prog-badge{position:absolute;top:14px;right:14px;background:var(--gold);color:var(--navy);font-family:var(--font-mono);font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:5px 11px;border-radius:999px}
+.prog-body{padding:24px 24px 26px;display:flex;flex-direction:column;gap:8px;flex:1}
+.prog-meta{font-family:var(--font-mono);font-size:11.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--teal)}
+.prog-body h3{font-size:22px;font-weight:800;color:var(--navy);letter-spacing:-.01em}
+.prog-body p{font-size:14.5px;color:var(--muted);flex:1}
+.prog-link{font-weight:700;font-size:14.5px;color:var(--teal);margin-top:10px}
+.prog-card:hover .prog-link{text-decoration:underline}
+.adult-row{margin-top:26px;border:1px dashed rgba(7,122,120,.4);border-radius:var(--radius);padding:20px 26px;display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap;background:rgba(7,122,120,.045)}
+.adult-row b{color:var(--navy);font-size:16.5px}
+.adult-row span{color:var(--muted);font-size:14.5px}
+
+/* scoreboard */
+.scoreboard{background:var(--navy);color:#fff;position:relative}
+.scoreboard::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:var(--gold)}
+.scoreboard .eyebrow{color:var(--gold)}
+.score-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:44px;border-top:1px solid rgba(255,255,255,.16)}
+.score-cell{padding:30px 26px 6px;border-left:1px solid rgba(255,255,255,.16)}
+.score-cell:first-child{border-left:none;padding-left:0}
+.score-cell .num{font-family:var(--font-mono);font-weight:600;font-size:clamp(34px,4vw,50px);color:var(--gold);line-height:1;letter-spacing:-.02em}
+.score-cell .lbl{margin-top:12px;font-size:14px;color:#B9C6D9;line-height:1.45}
+.score-foot{margin-top:44px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.score-col{border-top:2px solid var(--gold);padding-top:16px}
+.score-col h4{font-family:var(--font-mono);font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#fff;margin-bottom:10px}
+.score-col ul{list-style:none;font-size:14px;color:#B9C6D9;display:grid;gap:6px}
+
+/* coaches */
+.coaches{background:var(--sand)}
+.coach-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
+.coach-card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column}
+.coach-photo{aspect-ratio:1/1;background:linear-gradient(160deg,#C7D3E2,#93A6BF);display:grid;place-items:center;color:var(--navy);font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.coach-body{padding:20px 20px 22px}
+.coach-body .role{font-family:var(--font-mono);font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--teal);display:block;margin-bottom:6px;min-height:30px}
+.coach-body h3{font-size:18px;font-weight:800;color:var(--navy);margin-bottom:8px}
+.coach-body p{font-size:13.5px;color:var(--muted)}
+.office-line{margin-top:30px;text-align:center;font-size:15px;color:var(--muted)}
+.office-line b{color:var(--navy)}
+.office-line a{color:var(--teal);font-weight:700;text-decoration:none}
+.office-line a:hover{text-decoration:underline}
+
+/* tip of the month */
+.tip{background:#fff}
+.tip-box{display:grid;grid-template-columns:auto 1fr;gap:34px;border:1px solid var(--line);border-left:6px solid var(--gold);border-radius:var(--radius);padding:38px 42px;align-items:start;background:var(--sand)}
+.tip-ball{width:64px;height:64px;border-radius:50%;background:#D9E94E;position:relative;flex-shrink:0}
+.tip-ball::before{content:"";position:absolute;inset:0;border-radius:50%;border:3px solid rgba(255,255,255,.9);clip-path:inset(0 0 0 55%)}
+.tip-box .eyebrow{color:var(--teal);display:block;margin-bottom:8px}
+.tip-box h3{font-size:21px;font-weight:800;color:var(--navy);margin-bottom:14px;letter-spacing:-.01em}
+.tip-table{display:grid;gap:10px;max-width:560px}
+.tip-row{display:flex;justify-content:space-between;gap:18px;border-bottom:1px dashed var(--line);padding-bottom:9px;font-size:15px}
+.tip-row b{color:var(--navy)}
+.tip-row span{font-family:var(--font-mono);font-size:13.5px;font-weight:600;color:var(--teal)}
+.tip-note{margin-top:12px;font-size:13px;color:var(--muted)}
+
+/* cta band */
+.cta-band{background:var(--teal);color:#fff;text-align:center}
+.cta-band h2{font-size:clamp(28px,3.6vw,42px);font-weight:900;letter-spacing:-.02em;line-height:1.08;max-width:20ch;margin:0 auto 16px}
+.cta-band p{color:#D6ECEB;max-width:56ch;margin:0 auto 32px;font-size:17px}
+.cta-band .eyebrow{color:var(--gold);display:block;margin-bottom:14px}
+
+/* footer */
+footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px}
+.foot-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:40px;margin-bottom:48px}
+.foot-grid h4{font-family:var(--font-mono);font-size:11.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#fff;margin-bottom:16px}
+.foot-grid ul{list-style:none;display:grid;gap:9px}
+.foot-grid a{color:#B9C6D9;text-decoration:none}
+.foot-grid a:hover{color:var(--gold)}
+.foot-brand p{margin-top:14px;max-width:34ch}
+.foot-bottom{border-top:1px solid rgba(255,255,255,.14);padding-top:24px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:13px;color:#8FA1B8}
+
+/* motion */
+@media (prefers-reduced-motion:no-preference){
+  .rise{opacity:0;transform:translateY(14px);animation:rise .6s ease forwards}
+  .rise.d1{animation-delay:.08s}.rise.d2{animation-delay:.16s}.rise.d3{animation-delay:.24s}
+  @keyframes rise{to{opacity:1;transform:none}}
+}
+
+/* responsive */
+@media (max-width:980px){
+  .hero .wrap{grid-template-columns:1fr;gap:40px;padding-top:52px;padding-bottom:56px}
+  .prog-grid{grid-template-columns:1fr}
+  .score-grid{grid-template-columns:repeat(2,1fr)}
+  .score-cell{padding-left:0;border-left:none;border-top:1px solid rgba(255,255,255,.16)}
+  .score-grid{border-top:none}
+  .score-foot{grid-template-columns:1fr}
+  .coach-grid{grid-template-columns:repeat(2,1fr)}
+  .foot-grid{grid-template-columns:1fr 1fr}
+  .nav-links{display:none}
+  .tip-box{grid-template-columns:1fr;padding:30px 26px}
+}
+@media (max-width:560px){
+  .coach-grid{grid-template-columns:1fr}
+  .foot-grid{grid-template-columns:1fr}
+  .utility .left span.hide-sm{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="utility">
+  <div class="wrap">
+    <div class="left">
+      <a href="tel:7044589573">704-458-9573</a>
+      <span class="hide-sm"><a href="mailto:info@seahawkstennisacademy.com">info@seahawkstennisacademy.com</a></span>
+    </div>
+    <div class="right">
+      <a href="#">Log in</a>
+      <a href="#"><b style="color:var(--gold)">Register</b></a>
+    </div>
+  </div>
+</div>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#">
+      <span class="brand-mark">S</span>
+      <span class="brand-name"><b>Seahawks Tennis Academy</b><span>Wilmington · North Carolina</span></span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#programs">Programs</a></li>
+      <li><a href="#coaches">Coaches</a></li>
+      <li><a href="#">Schedule</a></li>
+      <li><a href="#">About</a></li>
+      <li><a href="#">Contact</a></li>
+    </ul>
+    <div class="nav-cta">
+      <a class="btn btn-gold" href="#">Register now</a>
+    </div>
+  </div>
+</header>
+
+<div class="announce">
+  <div class="wrap">
+    <span class="tag">Now open</span>
+    <span>Summer morning camp for kids — enrollment is live.</span>
+    <a href="#"><b>Save a spot →</b></a>
+  </div>
+</div>
+
+<section class="hero" style="padding:0">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow rise">Open to the public · Wilmington, NC</span>
+      <h1 class="rise d1">Train where the <span class="accent">Seahawks</span> train.</h1>
+      <p class="lede rise d2">Junior and adult tennis programs led by UNCW coaching staff and champion players — from a first swing at age six to a college scholarship.</p>
+      <div class="hero-ctas rise d3">
+        <a class="btn btn-teal" href="#">Claim a free kids trial</a>
+        <a class="btn btn-ghost" href="#programs">View programs</a>
+      </div>
+      <div class="hero-note rise d3">Free trial for all kids clinics</div>
+    </div>
+    <div class="hero-visual rise d2">
+      <div class="court-lines"><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i></div>
+      <div class="photo-hint">Hero photo<br>players on court</div>
+      <div class="hero-chip">
+        <b>2025 ball crew — Charlotte Invitational</b>
+        <span>On court with Tiafoe, Alcaraz, Keys &amp; Stephens</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="programs" id="programs">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <span class="eyebrow">Junior pathway</span>
+        <h2>A program for every stage of the game</h2>
+      </div>
+      <a class="more" href="#">See the full schedule →</a>
+    </div>
+    <div class="prog-grid">
+      <a class="prog-card" href="#">
+        <div class="prog-media m1"><span class="photo-hint">Photo — Grom's clinic</span></div>
+        <div class="prog-body">
+          <span class="prog-meta">Ages 6–10 · Ten weeks</span>
+          <h3>Grom's</h3>
+          <p>First rackets and fundamentals. High-energy sessions that build coordination, footwork, and a love of the game.</p>
+          <span class="prog-link">Explore Grom's →</span>
+        </div>
+      </a>
+      <a class="prog-card" href="#">
+        <div class="prog-media m2"><span class="photo-hint">Photo — Shredder's clinic</span></div>
+        <div class="prog-body">
+          <span class="prog-meta">Ages 11–16 · Ten weeks</span>
+          <h3>Shredder's</h3>
+          <p>Competitive stroke development, match play, and point strategy for players ready to take the next step.</p>
+          <span class="prog-link">Explore Shredder's →</span>
+        </div>
+      </a>
+      <a class="prog-card" href="#">
+        <div class="prog-media m3"><span class="photo-hint">Photo — Elite Academy</span>
+          <span class="prog-badge">Year-round</span>
+        </div>
+        <div class="prog-body">
+          <span class="prog-meta">Ages 10–18 · Membership</span>
+          <h3>Elite Academy</h3>
+          <p>Year-round training for tournament and college-bound players, directed by UNCW coaching staff.</p>
+          <span class="prog-link">Explore the Elite Academy →</span>
+        </div>
+      </a>
+    </div>
+    <div class="adult-row">
+      <div>
+        <b>Adults play here too.</b>
+        <span> Clinics and lessons for every level, beginner to advanced.</span>
+      </div>
+      <a class="btn btn-ghost" href="#" style="padding:11px 22px;font-size:14px">Adult programs →</a>
+    </div>
+  </div>
+</section>
+
+<section class="scoreboard">
+  <div class="wrap">
+    <span class="eyebrow">The scoreboard</span>
+    <h2 style="font-size:clamp(26px,3.2vw,38px);font-weight:800;letter-spacing:-.02em;margin-top:10px">Over 100 years of combined coaching experience</h2>
+    <div class="score-grid">
+      <div class="score-cell"><div class="num">10×</div><div class="lbl">CAA champions — UNCW men's team</div></div>
+      <div class="score-cell"><div class="num">20</div><div class="lbl">USTA junior league city championships</div></div>
+      <div class="score-cell"><div class="num">10</div><div class="lbl">State championships</div></div>
+      <div class="score-cell"><div class="num">5</div><div class="lbl">Students who reached the professional tour</div></div>
+    </div>
+    <div class="score-foot">
+      <div class="score-col">
+        <h4>UNCW men's team</h4>
+        <ul><li>10× coach of the year</li><li>11 NCAA tournament appearances</li><li>Top national rank: #33</li></ul>
+      </div>
+      <div class="score-col">
+        <h4>USTA junior league</h4>
+        <ul><li>20 city championships</li><li>10 state championships</li><li>2 national finalists</li></ul>
+      </div>
+      <div class="score-col">
+        <h4>Player achievement</h4>
+        <ul><li>5 professional players</li><li>20 collegiate players</li><li>Every student reached their high school team</li></ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="coaches" id="coaches">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <span class="eyebrow">The staff</span>
+        <h2>Coached by champions</h2>
+      </div>
+      <a class="more" href="#">Meet the full staff →</a>
+    </div>
+    <div class="coach-grid">
+      <div class="coach-card">
+        <div class="coach-photo">Photo</div>
+        <div class="coach-body">
+          <span class="role">Head tennis professional · On-court performance</span>
+          <h3>Logan Trimp</h3>
+          <p>Led academy teams to USTA city and state titles in 2023, 2024, and 2025. Host of the Seahawk Nation podcast.</p>
+        </div>
+      </div>
+      <div class="coach-card">
+        <div class="coach-photo">Photo</div>
+        <div class="coach-body">
+          <span class="role">UNCW men's coach · Elite camp director</span>
+          <h3>Mait DuBois</h3>
+          <p>30 years of elite player development. 10 CAA championships and the winningest coach in UNCW history.</p>
+        </div>
+      </div>
+      <div class="coach-card">
+        <div class="coach-photo">Photo</div>
+        <div class="coach-body">
+          <span class="role">Director of operations · Player development</span>
+          <h3>John Trimp</h3>
+          <p>Ran Charlotte's largest tennis academy for 20+ years, with 40 years of coaching behind him.</p>
+        </div>
+      </div>
+      <div class="coach-card">
+        <div class="coach-photo">Photo</div>
+        <div class="coach-body">
+          <span class="role">UNCW associate men's coach · HS elite pro</span>
+          <h3>Taylor Vaughn</h3>
+          <p>UNCW alum and 12-year associate coach, elevating high school players to college tennis.</p>
+        </div>
+      </div>
+    </div>
+    <p class="office-line"><b>Katie Tolchin</b> · Office manager · <a href="mailto:info@seahawkstennisacademy.com">info@seahawkstennisacademy.com</a></p>
+  </div>
+</section>
+
+<section class="tip">
+  <div class="wrap">
+    <div class="tip-box">
+      <div class="tip-ball" aria-hidden="true"></div>
+      <div>
+        <span class="eyebrow">Tip of the month</span>
+        <h3>"How many hours a week should my 12-year-old play to reach college tennis?"</h3>
+        <div class="tip-table">
+          <div class="tip-row"><b>Division 1</b><span>15–20 hrs / week</span></div>
+          <div class="tip-row"><b>Division 2</b><span>12–15 hrs / week</span></div>
+          <div class="tip-row"><b>Division 3</b><span>8–12 hrs / week</span></div>
+        </div>
+        <p class="tip-note">Scholarships available at D1 and D2. It depends on the player — but that's what past college players tell us.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-band">
+  <div class="wrap">
+    <span class="eyebrow">Free trial · Kids clinics</span>
+    <h2>The first clinic is on us.</h2>
+    <p>Every kids clinic comes with a free trial session. Come meet the coaches, hit some balls, and see if the academy is the right fit.</p>
+    <a class="btn btn-white" href="#">Book a free trial</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="#" style="text-decoration:none">
+          <span class="brand-mark">S</span>
+          <span class="brand-name"><b style="color:#fff">Seahawks Tennis Academy</b><span style="color:#8FA1B8">Wilmington · North Carolina</span></span>
+        </a>
+        <p>Junior and adult tennis programs on the UNCW campus, open to the public.</p>
+      </div>
+      <div>
+        <h4>Visit</h4>
+        <ul>
+          <li>748 Hamilton Drive</li>
+          <li>Wilmington, NC 28403</li>
+          <li><a href="tel:7044589573">704-458-9573</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Programs</h4>
+        <ul>
+          <li><a href="#">Grom's (6–10)</a></li>
+          <li><a href="#">Shredder's (11–16)</a></li>
+          <li><a href="#">Elite Academy</a></li>
+          <li><a href="#">Adult programs</a></li>
+          <li><a href="#">Summer camp</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Academy</h4>
+        <ul>
+          <li><a href="#">Staff</a></li>
+          <li><a href="#">Location</a></li>
+          <li><a href="#">Schedule</a></li>
+          <li><a href="#">Contact us</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 Seahawks Tennis Academy. All rights reserved.</span>
+      <span><a href="#" style="color:#8FA1B8">Privacy policy</a> · <a href="#" style="color:#8FA1B8">Terms of service</a></span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
