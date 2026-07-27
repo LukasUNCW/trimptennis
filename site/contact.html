@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contact us — Seahawks Tennis Academy</title>
+<meta name="description" content="Get in touch with Seahawks Tennis Academy at the UNCW tennis courts in Wilmington, North Carolina.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800;900&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="utility">
+  <div class="wrap">
+    <div class="left">
+      <a href="tel:7044589573">704-458-9573</a>
+      <span class="hide-sm"><a href="mailto:info@seahawkstennisacademy.com">info@seahawkstennisacademy.com</a></span>
+    </div>
+    <div class="right">
+      <a href="#">Log in</a>
+      <a href="/#programs"><b style="color:var(--gold)">Register</b></a>
+    </div>
+  </div>
+</div>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/">
+      <img class="brand-mark" src="images/uncw-logo.svg" width="44" height="44" alt="">
+      <span class="brand-name"><b>Seahawks Tennis Academy</b><span>Wilmington · North Carolina</span></span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="/#programs">Programs</a></li>
+      <li><a href="/#coaches">Coaches</a></li>
+      <li><a href="#">Schedule</a></li>
+      <li><a href="#">About</a></li>
+      <li><a href="/contact" aria-current="page">Contact</a></li>
+    </ul>
+    <div class="nav-cta">
+      <a class="btn btn-gold" href="/#programs">Register now</a>
+    </div>
+  </div>
+</header>
+
+<section class="page-head">
+  <div class="wrap">
+    <span class="eyebrow">Get in touch</span>
+    <h1>Contact us</h1>
+    <p>Questions about a program, a schedule, or a payment — send them here and the office will get back to you.</p>
+  </div>
+</section>
+
+<section class="contact">
+  <div class="wrap contact-grid">
+
+    <form id="contactForm" novalidate>
+      <div class="enroll-msg" id="cfErr" role="alert" hidden></div>
+
+      <div class="field">
+        <label for="cf-topic">Email to <span class="req">*</span></label>
+        <select id="cf-topic" name="email_to" required></select>
+      </div>
+
+      <div class="field">
+        <label for="cf-name">Name <span class="req">*</span></label>
+        <input id="cf-name" name="name" maxlength="100" autocomplete="name" placeholder="Your first and last name" required>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="cf-email">Email <span class="req">*</span></label>
+          <input id="cf-email" name="email" type="email" maxlength="200" autocomplete="email" placeholder="Your email address" required>
+        </div>
+        <div class="field">
+          <label for="cf-phone">Phone</label>
+          <input id="cf-phone" name="phone" type="tel" maxlength="40" autocomplete="tel" placeholder="Your phone number">
+        </div>
+      </div>
+
+      <div class="field" style="max-width:220px">
+        <label for="cf-zip">Zip code</label>
+        <input id="cf-zip" name="zip" maxlength="20" autocomplete="postal-code" inputmode="numeric" placeholder="Your zip code">
+      </div>
+
+      <fieldset class="field radio-set">
+        <legend>Would you like us to contact you by email or phone?</legend>
+        <label class="radio"><input type="radio" name="contact_preference" value="email" checked> Email</label>
+        <label class="radio"><input type="radio" name="contact_preference" value="phone"> Phone</label>
+      </fieldset>
+
+      <div class="field">
+        <label for="cf-message">Comments / questions <span class="req">*</span></label>
+        <textarea id="cf-message" name="message" maxlength="2000" rows="5" required></textarea>
+      </div>
+
+      <div class="field">
+        <label for="cf-turnstile-label" id="cf-turnstile-label">Human check <span class="req">*</span></label>
+        <div id="cf-turnstile"></div>
+      </div>
+
+      <div class="contact-actions">
+        <button type="submit" class="btn btn-teal" id="cf-submit">Send message</button>
+        <a class="btn btn-ghost" href="/">Cancel</a>
+      </div>
+    </form>
+
+    <div class="contact-side">
+      <div class="contact-card">
+        <h2>The office</h2>
+        <p class="contact-person"><b>Katie Tolchin</b><span>Office manager</span></p>
+        <ul class="contact-list">
+          <li><span>Email</span><a href="mailto:info@seahawkstennisacademy.com">info@seahawkstennisacademy.com</a></li>
+          <li><span>Phone</span><a href="tel:7044589573">704-458-9573</a></li>
+        </ul>
+      </div>
+
+      <div class="contact-card">
+        <h2>Where we play</h2>
+        <p class="contact-addr">
+          UNCW Tennis Courts<br>
+          751 Hamilton Dr<br>
+          Wilmington, NC 28403
+        </p>
+        <div class="map-wrap">
+          <iframe
+            title="Map showing UNCW Tennis Courts at 751 Hamilton Dr, Wilmington, NC 28403"
+            src="https://www.google.com/maps?q=UNCW%20Tennis%20Courts,%20751%20Hamilton%20Dr,%20Wilmington,%20NC%2028403&output=embed"
+            loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+        </div>
+        <a class="map-link" href="https://www.google.com/maps/search/?api=1&query=UNCW+Tennis+Courts,+751+Hamilton+Dr,+Wilmington,+NC+28403"
+           target="_blank" rel="noopener">Open in Google Maps →</a>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="/" style="text-decoration:none">
+          <img class="brand-mark" src="images/uncw-logo.svg" width="44" height="44" alt="">
+          <span class="brand-name"><b style="color:#fff">Seahawks Tennis Academy</b><span style="color:#8FA1B8">Wilmington · North Carolina</span></span>
+        </a>
+        <p>Junior and adult tennis programs on the UNCW campus, open to the public.</p>
+      </div>
+      <div>
+        <h4>Visit</h4>
+        <ul>
+          <li>751 Hamilton Dr</li>
+          <li>Wilmington, NC 28403</li>
+          <li><a href="tel:7044589573">704-458-9573</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Programs</h4>
+        <ul>
+          <li><a href="/#programs">Grom's (6–10)</a></li>
+          <li><a href="/#programs">Shredder's (11–16)</a></li>
+          <li><a href="/#programs">Elite Academy</a></li>
+          <li><a href="/#programs">Adult programs</a></li>
+          <li><a href="/#programs">Summer camp</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Academy</h4>
+        <ul>
+          <li><a href="/#coaches">Staff</a></li>
+          <li><a href="#">Location</a></li>
+          <li><a href="#">Schedule</a></li>
+          <li><a href="/contact">Contact us</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 Seahawks Tennis Academy. All rights reserved.</span>
+      <span><a href="#" style="color:#8FA1B8">Privacy policy</a> · <a href="#" style="color:#8FA1B8">Terms of service</a></span>
+    </div>
+  </div>
+</footer>
+
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+<script>
+(() => {
+  // TEST key — Cloudflare's always-passes widget. Replace with the real site
+  // key and run `wrangler secret put TURNSTILE_SECRET` before launch.
+  const TURNSTILE_SITE_KEY = '1x00000000000000000000AA';
+
+  const form     = document.getElementById('contactForm');
+  const errBox   = document.getElementById('cfErr');
+  const submitBt = document.getElementById('cf-submit');
+  const topicSel = document.getElementById('cf-topic');
+  let widgetId = null;
+
+  const showErr = (msg) => { errBox.textContent = msg; errBox.hidden = false; errBox.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
+  const val = (id) => document.getElementById(id).value;
+
+  // Topics come from the Worker so the menu cannot drift from what
+  // /api/inquiry submissions are validated against.
+  fetch('/api/inquiry-topics')
+    .then((r) => r.json())
+    .then((topics) => {
+      topicSel.innerHTML = topics.map((t) => `<option value="${t}">${t}</option>`).join('');
+    })
+    .catch(() => {
+      topicSel.innerHTML = '<option value="General Inquiry">General Inquiry</option>';
+    });
+
+  const turnstileReady = (timeoutMs = 8000) => {
+    if (window.turnstile) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const started = Date.now();
+      const timer = setInterval(() => {
+        if (window.turnstile) { clearInterval(timer); resolve(true); }
+        else if (Date.now() - started > timeoutMs) { clearInterval(timer); resolve(false); }
+      }, 100);
+    });
+  };
+
+  // Submit stays disabled until the widget exists, so the form never looks
+  // ready while every attempt would fail the bot gate.
+  (async () => {
+    submitBt.disabled = true;
+    if (!(await turnstileReady())) {
+      showErr('The verification check could not load — please refresh and try again.');
+      return;
+    }
+    widgetId = window.turnstile.render('#cf-turnstile', { sitekey: TURNSTILE_SITE_KEY });
+    submitBt.disabled = false;
+  })();
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errBox.hidden = true;
+
+    const pref = form.querySelector('input[name="contact_preference"]:checked')?.value ?? 'email';
+    const body = {
+      kind: 'contact',
+      email_to: topicSel.value,
+      name: val('cf-name'),
+      email: val('cf-email'),
+      phone: val('cf-phone'),
+      zip: val('cf-zip'),
+      contact_preference: pref,
+      message: val('cf-message')
+    };
+
+    if (!body.name.trim())              return showErr('Please enter your name.');
+    if (!body.email.includes('@'))      return showErr('Please enter a valid email address.');
+    if (!body.message.trim())           return showErr('Please add your question or comment.');
+    if (pref === 'phone' && !body.phone.trim())
+      return showErr('You asked to be contacted by phone — please add a phone number.');
+
+    if (!window.turnstile || widgetId === null) {
+      return showErr('The verification check could not load — please refresh and try again.');
+    }
+    body.turnstileToken = window.turnstile.getResponse(widgetId);
+    if (!body.turnstileToken) return showErr('Please complete the verification check.');
+
+    submitBt.disabled = true;
+    submitBt.textContent = 'Sending…';
+
+    try {
+      const res = await fetch('/api/inquiry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Something went wrong.');
+    } catch (err) {
+      submitBt.disabled = false;
+      submitBt.textContent = 'Send message';
+      window.turnstile.reset(widgetId);   // tokens are single-use
+      return showErr(err.message === 'Failed to fetch'
+        ? 'Network problem — please check your connection and try again.'
+        : err.message);
+    }
+
+    form.innerHTML =
+      '<div class="contact-done">' +
+      '<div class="tick" aria-hidden="true">&check;</div>' +
+      '<h2>Message sent</h2>' +
+      '<p>Thanks — the academy has your message and will be in touch' +
+      (pref === 'phone' ? ' by phone' : ' by email') + ' shortly.</p>' +
+      '<a class="btn btn-ghost" href="/">Back to the site</a>' +
+      '</div>';
+  });
+})();
+</script>
+
+</body>
+</html>

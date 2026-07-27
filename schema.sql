@@ -39,7 +39,12 @@ CREATE TABLE IF NOT EXISTS inquiries (
   phone TEXT,
   player_name TEXT,
   age_group TEXT,
-  message TEXT
+  message TEXT,
+  -- Contact-form only: which topic the sender picked, so the office can route
+  -- it, plus how they would rather be reached.
+  email_to TEXT,
+  zip TEXT,
+  contact_preference TEXT           -- 'email' | 'phone'
 );
 
 -- QuickBooks OAuth tokens. Single row (id = 1), updated on every refresh.

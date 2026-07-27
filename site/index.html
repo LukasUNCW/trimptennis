@@ -7,252 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800;900&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-<style>
-:root{
-  --navy:#0A2240;
-  --navy-2:#0E2C52;
-  --teal:#077A78;
-  --teal-dark:#055D5B;
-  --gold:#F5B72E;
-  --sand:#F6F5F0;
-  --white:#FFFFFF;
-  --ink:#15263D;
-  --muted:#5A6B80;
-  --line:rgba(10,34,64,.12);
-  --radius:14px;
-  --font-display:"Archivo",system-ui,sans-serif;
-  --font-mono:"IBM Plex Mono",ui-monospace,monospace;
-}
-*{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{font-family:var(--font-display);color:var(--ink);background:var(--white);line-height:1.6;font-size:16px}
-img{max-width:100%;display:block}
-a{color:inherit}
-.wrap{max-width:1180px;margin:0 auto;padding:0 28px}
-.eyebrow{font-family:var(--font-mono);font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
-.btn{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:15px;text-decoration:none;padding:14px 26px;border-radius:999px;transition:transform .15s ease,background .15s ease;border:2px solid transparent}
-.btn:hover{transform:translateY(-1px)}
-.btn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
-.btn-teal{background:var(--teal);color:#fff}
-.btn-teal:hover{background:var(--teal-dark)}
-.btn-gold{background:var(--gold);color:var(--navy)}
-.btn-gold:hover{background:#ffc94d}
-.btn-ghost{border-color:var(--navy);color:var(--navy)}
-.btn-ghost:hover{background:var(--navy);color:#fff}
-.btn-white{background:#fff;color:var(--teal-dark)}
-
-/* utility bar */
-.utility{background:var(--navy);color:#B9C6D9;font-size:13px}
-.utility .wrap{display:flex;justify-content:space-between;align-items:center;min-height:38px}
-.utility a{color:#DDE6F2;text-decoration:none}
-.utility a:hover{color:var(--gold)}
-.utility .left,.utility .right{display:flex;gap:22px;align-items:center}
-
-/* nav */
-header.nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-.nav .wrap{display:flex;align-items:center;justify-content:space-between;min-height:76px}
-.brand{display:flex;align-items:center;gap:12px;text-decoration:none}
-/* the real logo replaces the placeholder teal circle: its own teal/gold would
-   have fought the stand-in disc and ring, so both are gone */
-.brand-mark{width:44px;height:44px;flex-shrink:0}
-.brand-name{line-height:1.15}
-.brand-name b{display:block;font-size:17px;font-weight:800;color:var(--navy);letter-spacing:-.01em}
-.brand-name span{font-family:var(--font-mono);font-size:10.5px;font-weight:600;letter-spacing:.16em;color:var(--muted);text-transform:uppercase}
-.nav-links{display:flex;gap:30px;align-items:center;list-style:none}
-.nav-links a{text-decoration:none;font-weight:600;font-size:15px;color:var(--navy)}
-.nav-links a:hover{color:var(--teal)}
-.nav-cta{display:flex;gap:12px;align-items:center}
-.nav-cta .btn{padding:11px 22px;font-size:14px}
-
-/* announcement */
-.announce{background:var(--gold);color:var(--navy)}
-.announce .wrap{display:flex;justify-content:center;align-items:center;gap:14px;min-height:46px;font-weight:700;font-size:14.5px;flex-wrap:wrap;text-align:center}
-.announce .tag{font-family:var(--font-mono);font-size:11px;font-weight:600;letter-spacing:.12em;background:var(--navy);color:var(--gold);padding:3px 10px;border-radius:999px}
-.announce a{color:var(--navy)}
-
-/* hero */
-.hero{background:var(--sand);border-bottom:1px solid var(--line);overflow:hidden}
-.hero .wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center;padding-top:72px;padding-bottom:80px}
-.hero h1{font-size:clamp(38px,5vw,60px);font-weight:900;line-height:1.04;letter-spacing:-.025em;color:var(--navy);margin:18px 0 20px}
-.hero h1 .accent{color:var(--teal)}
-.hero p.lede{font-size:18px;color:var(--muted);max-width:52ch;margin-bottom:32px}
-.hero .eyebrow{color:var(--teal)}
-.hero-ctas{display:flex;gap:14px;flex-wrap:wrap}
-.hero-note{margin-top:22px;font-family:var(--font-mono);font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:10px}
-.hero-note::before{content:"";width:34px;height:2px;background:var(--gold)}
-/* 3/2 matches the ball-crew photo, so nobody gets cropped out of the team shot */
-.hero-visual{position:relative;aspect-ratio:3/2;border-radius:20px;background:var(--teal);overflow:hidden}
-.hero-visual picture,.hero-visual img{display:block;width:100%;height:100%}
-.hero-visual img{object-fit:cover}
-.hero-chip{position:absolute;left:20px;bottom:20px;background:#fff;border-radius:12px;padding:14px 18px;box-shadow:0 12px 30px rgba(10,34,64,.18);max-width:250px}
-.hero-chip b{display:block;font-size:14px;color:var(--navy)}
-.hero-chip span{font-size:12.5px;color:var(--muted)}
-
-/* section scaffolding */
-section{padding:84px 0}
-.sec-head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:44px;flex-wrap:wrap}
-.sec-head .eyebrow{color:var(--teal);display:block;margin-bottom:10px}
-.sec-head h2{font-size:clamp(28px,3.4vw,40px);font-weight:800;letter-spacing:-.02em;color:var(--navy);line-height:1.1}
-.sec-head .more{font-weight:700;font-size:15px;color:var(--teal);text-decoration:none;white-space:nowrap}
-.sec-head .more:hover{text-decoration:underline}
-
-/* programs */
-.programs{background:#fff}
-.prog-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
-.prog-card{position:relative;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;text-decoration:none;display:flex;flex-direction:column;transition:transform .18s ease,box-shadow .18s ease;background:#fff}
-.prog-card:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(10,34,64,.12)}
-.prog-card:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
-.prog-media{aspect-ratio:16/10;background:var(--navy-2);position:relative}
-.prog-media::before,.prog-media::after{content:"";position:absolute;background:rgba(255,255,255,.4)}
-.prog-media::before{left:18px;top:0;bottom:0;width:2px}
-.prog-media::after{left:18px;bottom:26px;height:2px;width:46%}
-.prog-media .photo-hint{position:absolute;inset:0;display:grid;place-items:center;color:rgba(255,255,255,.65);font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase}
-.prog-media.m1{background:var(--teal)}
-.prog-media.m2{background:var(--navy-2)}
-.prog-media.m3{background:linear-gradient(0deg,var(--navy),var(--navy));position:relative}
-.prog-badge{position:absolute;top:14px;right:14px;background:var(--gold);color:var(--navy);font-family:var(--font-mono);font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:5px 11px;border-radius:999px}
-.prog-body{padding:24px 24px 26px;display:flex;flex-direction:column;gap:8px;flex:1}
-.prog-meta{font-family:var(--font-mono);font-size:11.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--teal)}
-.prog-body h3{font-size:22px;font-weight:800;color:var(--navy);letter-spacing:-.01em}
-.prog-body p{font-size:14.5px;color:var(--muted);flex:1}
-.prog-link{font-weight:700;font-size:14.5px;color:var(--teal);margin-top:10px}
-.prog-card:hover .prog-link{text-decoration:underline}
-.adult-row{margin-top:26px;border:1px dashed rgba(7,122,120,.4);border-radius:var(--radius);padding:20px 26px;display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap;background:rgba(7,122,120,.045)}
-.adult-row b{color:var(--navy);font-size:16.5px}
-.adult-row span{color:var(--muted);font-size:14.5px}
-
-/* scoreboard */
-.scoreboard{background:var(--navy);color:#fff;position:relative}
-.scoreboard::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:var(--gold)}
-.scoreboard .eyebrow{color:var(--gold)}
-.score-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:44px;border-top:1px solid rgba(255,255,255,.16)}
-.score-cell{padding:30px 26px 6px;border-left:1px solid rgba(255,255,255,.16)}
-.score-cell:first-child{border-left:none;padding-left:0}
-.score-cell .num{font-family:var(--font-mono);font-weight:600;font-size:clamp(34px,4vw,50px);color:var(--gold);line-height:1;letter-spacing:-.02em}
-.score-cell .lbl{margin-top:12px;font-size:14px;color:#B9C6D9;line-height:1.45}
-.score-foot{margin-top:44px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
-.score-col{border-top:2px solid var(--gold);padding-top:16px}
-.score-col h4{font-family:var(--font-mono);font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#fff;margin-bottom:10px}
-.score-col ul{list-style:none;font-size:14px;color:#B9C6D9;display:grid;gap:6px}
-
-/* coaches */
-.coaches{background:var(--sand)}
-.coach-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
-.coach-card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column}
-/* 4/5 portrait rather than square: these are all taller-than-square sources,
-   so it crops far less — roughly 91-96% of each photo survives instead of 73-87% */
-.coach-photo{position:relative;aspect-ratio:4/5;overflow:hidden;background:linear-gradient(160deg,#C7D3E2,#93A6BF)}
-/* The picture is taken out of flow so the ratio box alone decides the height.
-   In normal flow the image's intrinsic height set a grid min-content floor that
-   beat aspect-ratio, and every card ended up sized to its own photo. */
-.coach-photo picture{position:absolute;inset:0}
-/* top-weighted so what does get cropped is below the faces */
-.coach-photo img{width:100%;height:100%;object-fit:cover;object-position:center top}
-.coach-body{padding:20px 20px 22px}
-/* min-height holds exactly two lines at this size (10.5px x 1.6 line-height x 2),
-   so a one-line role still reserves the same space and the names stay level */
-.coach-body .role{font-family:var(--font-mono);font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--teal);display:block;margin-bottom:6px;min-height:34px}
-.coach-body h3{font-size:18px;font-weight:800;color:var(--navy);margin-bottom:8px}
-.coach-body p{font-size:13.5px;color:var(--muted)}
-.office-line{margin-top:30px;text-align:center;font-size:15px;color:var(--muted)}
-.office-line b{color:var(--navy)}
-.office-line a{color:var(--teal);font-weight:700;text-decoration:none}
-.office-line a:hover{text-decoration:underline}
-
-/* tip of the month */
-.tip{background:#fff}
-.tip-box{display:grid;grid-template-columns:auto 1fr;gap:34px;border:1px solid var(--line);border-left:6px solid var(--gold);border-radius:var(--radius);padding:38px 42px;align-items:start;background:var(--sand)}
-.tip-ball{width:64px;height:64px;border-radius:50%;background:#D9E94E;position:relative;flex-shrink:0}
-.tip-ball::before{content:"";position:absolute;inset:0;border-radius:50%;border:3px solid rgba(255,255,255,.9);clip-path:inset(0 0 0 55%)}
-.tip-box .eyebrow{color:var(--teal);display:block;margin-bottom:8px}
-.tip-box h3{font-size:21px;font-weight:800;color:var(--navy);margin-bottom:14px;letter-spacing:-.01em}
-.tip-table{display:grid;gap:10px;max-width:560px}
-.tip-row{display:flex;justify-content:space-between;gap:18px;border-bottom:1px dashed var(--line);padding-bottom:9px;font-size:15px}
-.tip-row b{color:var(--navy)}
-.tip-row span{font-family:var(--font-mono);font-size:13.5px;font-weight:600;color:var(--teal)}
-.tip-note{margin-top:12px;font-size:13px;color:var(--muted)}
-
-/* cta band */
-.cta-band{background:var(--teal);color:#fff;text-align:center}
-.cta-band h2{font-size:clamp(28px,3.6vw,42px);font-weight:900;letter-spacing:-.02em;line-height:1.08;max-width:20ch;margin:0 auto 16px}
-.cta-band p{color:#D6ECEB;max-width:56ch;margin:0 auto 32px;font-size:17px}
-.cta-band .eyebrow{color:var(--gold);display:block;margin-bottom:14px}
-
-/* footer */
-footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px}
-.foot-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:40px;margin-bottom:48px}
-.foot-grid h4{font-family:var(--font-mono);font-size:11.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#fff;margin-bottom:16px}
-.foot-grid ul{list-style:none;display:grid;gap:9px}
-.foot-grid a{color:#B9C6D9;text-decoration:none}
-.foot-grid a:hover{color:var(--gold)}
-.foot-brand p{margin-top:14px;max-width:34ch}
-.foot-bottom{border-top:1px solid rgba(255,255,255,.14);padding-top:24px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:13px;color:#8FA1B8}
-
-/* enrollment dialog */
-/* inset:0 + margin:auto centres on both axes without relying on UA defaults.
-   NOTE: the display property MUST stay on .enroll[open] only. Author styles
-   beat the UA `dialog:not([open]){display:none}` rule regardless of
-   specificity, so declaring display here leaves the dialog permanently on
-   screen even when closed. */
-.enroll{position:fixed;inset:0;margin:auto;width:min(560px,calc(100vw - 28px));max-height:min(calc(100vh - 48px),780px);padding:0;border:none;border-radius:var(--radius);background:#fff;color:var(--ink);overflow:hidden;box-shadow:0 24px 60px rgba(10,34,64,.28)}
-.enroll[open]{display:flex;flex-direction:column}
-/* flex column so the body scrolls in whatever space the header leaves, rather
-   than a hardcoded header-height guess */
-.enroll form{display:flex;flex-direction:column;min-height:0}
-.enroll::backdrop{background:rgba(10,34,64,.58)}
-.enroll-head{flex:none;padding:24px 28px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
-.enroll-head h2{font-size:22px;font-weight:800;color:var(--navy);letter-spacing:-.01em;line-height:1.2}
-.enroll-head p{font-size:14px;color:var(--muted);margin-top:5px}
-.enroll-x{background:none;border:none;font-size:26px;line-height:1;color:var(--muted);cursor:pointer;padding:0 6px;border-radius:8px;flex-shrink:0}
-.enroll-x:hover{background:var(--sand);color:var(--navy)}
-.enroll-x:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
-.enroll-body{flex:1;min-height:0;padding:20px 28px 26px;overflow-y:auto}
-.field{display:grid;gap:6px;margin-bottom:15px}
-.field label{font-size:13.5px;font-weight:700;color:var(--navy)}
-.field .req{color:var(--teal)}
-.field input,.field select,.field textarea{font-family:inherit;font-size:15px;color:var(--ink);padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;background:#fff;width:100%}
-.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(7,122,120,.16)}
-.field textarea{resize:vertical;min-height:74px}
-.field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-/* adult programs hide the guardian field, so the row collapses to one column
-   rather than leaving phone stranded in half a row */
-.field-row.one-col{grid-template-columns:1fr}
-.enroll-msg{font-size:14px;padding:11px 14px;border-radius:10px;margin-bottom:16px;background:#FDECEC;border-left:4px solid #C0392B;color:#7B241C}
-.enroll-note{font-size:12.5px;color:var(--muted);margin-top:14px;line-height:1.5}
-.enroll-done{padding:38px 30px 42px;text-align:center}
-.enroll-done .tick{width:56px;height:56px;border-radius:50%;background:var(--teal);color:#fff;display:grid;place-items:center;font-size:27px;font-weight:700;margin:0 auto 18px}
-.enroll-done h3{font-size:21px;font-weight:800;color:var(--navy);margin-bottom:10px}
-.enroll-done p{font-size:15px;color:var(--muted);max-width:42ch;margin:0 auto 22px}
-.enroll button[disabled]{opacity:.55;cursor:not-allowed;transform:none}
-[hidden]{display:none!important}
-@media (max-width:560px){.field-row{grid-template-columns:1fr}.enroll-head,.enroll-body{padding-left:20px;padding-right:20px}}
-
-/* motion */
-@media (prefers-reduced-motion:no-preference){
-  .rise{opacity:0;transform:translateY(14px);animation:rise .6s ease forwards}
-  .rise.d1{animation-delay:.08s}.rise.d2{animation-delay:.16s}.rise.d3{animation-delay:.24s}
-  @keyframes rise{to{opacity:1;transform:none}}
-}
-
-/* responsive */
-@media (max-width:980px){
-  .hero .wrap{grid-template-columns:1fr;gap:40px;padding-top:52px;padding-bottom:56px}
-  .prog-grid{grid-template-columns:1fr}
-  .score-grid{grid-template-columns:repeat(2,1fr)}
-  .score-cell{padding-left:0;border-left:none;border-top:1px solid rgba(255,255,255,.16)}
-  .score-grid{border-top:none}
-  .score-foot{grid-template-columns:1fr}
-  .coach-grid{grid-template-columns:repeat(2,1fr)}
-  .foot-grid{grid-template-columns:1fr 1fr}
-  .nav-links{display:none}
-  .tip-box{grid-template-columns:1fr;padding:30px 26px}
-}
-@media (max-width:560px){
-  .coach-grid{grid-template-columns:1fr}
-  .foot-grid{grid-template-columns:1fr}
-  .utility .left span.hide-sm{display:none}
-}
-</style>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
@@ -280,7 +35,7 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
       <li><a href="#coaches">Coaches</a></li>
       <li><a href="#">Schedule</a></li>
       <li><a href="#">About</a></li>
-      <li><a href="#">Contact</a></li>
+      <li><a href="/contact">Contact</a></li>
     </ul>
     <div class="nav-cta">
       <a class="btn btn-gold" href="#" data-enroll="">Register now</a>
@@ -525,7 +280,7 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
       <div>
         <h4>Visit</h4>
         <ul>
-          <li>748 Hamilton Drive</li>
+          <li>751 Hamilton Dr</li>
           <li>Wilmington, NC 28403</li>
           <li><a href="tel:7044589573">704-458-9573</a></li>
         </ul>
@@ -546,7 +301,7 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
           <li><a href="#">Staff</a></li>
           <li><a href="#">Location</a></li>
           <li><a href="#">Schedule</a></li>
-          <li><a href="#">Contact us</a></li>
+          <li><a href="/contact">Contact us</a></li>
         </ul>
       </div>
     </div>

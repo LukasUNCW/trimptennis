@@ -66,16 +66,29 @@ export async function notifyEnrollment(env: Env, e: {
 export async function notifyInquiry(env: Env, q: {
   kind: string; name: string; email: string; phone?: string | null;
   player_name?: string | null; age_group?: string | null; message?: string | null;
+  email_to?: string | null; zip?: string | null; contact_preference?: string | null;
 }): Promise<void> {
   const label = q.kind === 'free_trial' ? 'Free trial request' : 'Website contact';
-  await send(env, `${label}: ${q.name}`, `
+  // The topic belongs in the subject line — it is how the office decides who
+  // picks the message up.
+  const subject = q.email_to ? `${label} — ${q.email_to}: ${q.name}` : `${label}: ${q.name}`;
+  const wantsPhone = q.contact_preference === 'phone';
+
+  await send(env, subject, `
     <h2 style="margin:0 0 12px">${esc(label)}</h2>
     <table style="font-family:sans-serif;font-size:14px;border-collapse:collapse">
+      ${q.email_to ? row('Regarding', esc(q.email_to)) : ''}
       ${row('Name', esc(q.name))}
       ${row('Email', esc(q.email))}
       ${row('Phone', esc(q.phone))}
+      ${q.zip ? row('Zip', esc(q.zip)) : ''}
       ${q.player_name ? row('Player', `${esc(q.player_name)} (${esc(q.age_group)})`) : ''}
       ${q.message ? row('Message', esc(q.message)) : ''}
     </table>
-    <p style="font-family:sans-serif;font-size:13px;color:#666">Reply directly to reach them: ${esc(q.email)}</p>`);
+    ${q.contact_preference ? `
+    <p style="font-family:sans-serif;font-size:14px;padding:11px 14px;margin:16px 0 0;
+       background:${wantsPhone ? '#FFF4D6' : '#EDF6F6'};border-left:4px solid ${wantsPhone ? '#F5B72E' : '#077A78'}">
+      <b>Prefers ${wantsPhone ? 'a phone call' : 'email'}:</b>
+      ${wantsPhone ? esc(q.phone) : esc(q.email)}</p>` : `
+    <p style="font-family:sans-serif;font-size:13px;color:#666">Reply directly to reach them: ${esc(q.email)}</p>`}`);
 }

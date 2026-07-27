@@ -30,6 +30,9 @@ export default {
       if (request.method === 'GET' && pathname === '/api/programs') {
         return json(listPrograms());
       }
+      if (request.method === 'GET' && pathname === '/api/inquiry-topics') {
+        return json(INQUIRY_TOPICS);
+      }
       if (request.method === 'POST' && pathname === '/api/enroll') {
         return await handleEnroll(request, env, ctx);
       }
@@ -134,6 +137,17 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
   });
 }
 
+// Topics offered by the contact form's "Email to" menu. Served to the form at
+// /api/inquiry-topics and validated against here, so the two cannot drift.
+const INQUIRY_TOPICS = [
+  'General Inquiry',
+  'Junior Programs',
+  'Adult Programs',
+  'Elite Academy',
+  'Summer Camp',
+  'Billing & Payments'
+];
+
 async function handleInquiry(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   let body: any;
   try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
@@ -149,6 +163,11 @@ async function handleInquiry(request: Request, env: Env, ctx: ExecutionContext):
     return json({ error: 'Name and a valid email are required.' }, 400);
   }
 
+  // Unrecognised topics are dropped rather than stored, so the value in the
+  // office's inbox is always one the form actually offers.
+  const topic = str(body.email_to, 60);
+  const pref = body.contact_preference === 'phone' ? 'phone' : 'email';
+
   const record = {
     id: crypto.randomUUID(),
     kind,
@@ -157,16 +176,27 @@ async function handleInquiry(request: Request, env: Env, ctx: ExecutionContext):
     phone: str(body.phone, 40),
     player_name: str(body.player_name, 100),
     age_group: str(body.age_group, 40),
-    message: str(body.message, 2000)
+    message: str(body.message, 2000),
+    email_to: topic && INQUIRY_TOPICS.includes(topic) ? topic : null,
+    zip: str(body.zip, 20),
+    contact_preference: kind === 'contact' ? pref : null
   };
+
+  // Asking to be phoned back without leaving a number would strand the office.
+  if (record.contact_preference === 'phone' && !record.phone) {
+    return json({ error: 'Please add a phone number, or choose email instead.' }, 400);
+  }
 
   await env.DB
     .prepare(
-      `INSERT INTO inquiries (id, kind, name, email, phone, player_name, age_group, message)
-       VALUES (?1,?2,?3,?4,?5,?6,?7,?8)`
+      `INSERT INTO inquiries
+       (id, kind, name, email, phone, player_name, age_group, message,
+        email_to, zip, contact_preference)
+       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)`
     )
     .bind(record.id, record.kind, record.name, record.email, record.phone,
-          record.player_name, record.age_group, record.message)
+          record.player_name, record.age_group, record.message,
+          record.email_to, record.zip, record.contact_preference)
     .run();
 
   ctx.waitUntil(notifyInquiry(env, record));
