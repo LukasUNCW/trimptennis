@@ -139,12 +139,14 @@ section{padding:84px 0}
 .coaches{background:var(--sand)}
 .coach-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
 .coach-card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column}
-.coach-photo{position:relative;aspect-ratio:1/1;overflow:hidden;background:linear-gradient(160deg,#C7D3E2,#93A6BF)}
-/* The picture is taken out of flow so the square box alone decides the height.
+/* 4/5 portrait rather than square: these are all taller-than-square sources,
+   so it crops far less — roughly 91-96% of each photo survives instead of 73-87% */
+.coach-photo{position:relative;aspect-ratio:4/5;overflow:hidden;background:linear-gradient(160deg,#C7D3E2,#93A6BF)}
+/* The picture is taken out of flow so the ratio box alone decides the height.
    In normal flow the image's intrinsic height set a grid min-content floor that
    beat aspect-ratio, and every card ended up sized to its own photo. */
 .coach-photo picture{position:absolute;inset:0}
-/* top-weighted so the square crop keeps faces, not torsos */
+/* top-weighted so what does get cropped is below the faces */
 .coach-photo img{width:100%;height:100%;object-fit:cover;object-position:center top}
 .coach-body{padding:20px 20px 22px}
 /* min-height holds exactly two lines at this size (10.5px x 1.6 line-height x 2),
