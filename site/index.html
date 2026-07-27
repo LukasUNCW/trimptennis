@@ -379,11 +379,9 @@
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 <script>
 (() => {
-  // TEST key — Cloudflare's documented always-passes widget, so the form is
-  // usable before a real Turnstile site is created. Swap this for the real
-  // site key and run `wrangler secret put TURNSTILE_SECRET` before launch,
-  // or the form has no bot protection at all.
-  const TURNSTILE_SITE_KEY = '1x00000000000000000000AA';
+  // Live Turnstile widget "Seahawks Tennis Academy". The site key is public;
+  // the matching secret is the TURNSTILE_SECRET Worker secret.
+  const TURNSTILE_SITE_KEY = '0x4AAAAAAD_U3gZ8R47QurWL';
 
   const dlg      = document.getElementById('enrollDialog');
   const form     = document.getElementById('enrollForm');
