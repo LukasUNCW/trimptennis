@@ -181,15 +181,24 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
 .foot-bottom{border-top:1px solid rgba(255,255,255,.14);padding-top:24px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:13px;color:#8FA1B8}
 
 /* enrollment dialog */
-.enroll{width:min(560px,calc(100vw - 28px));max-height:calc(100vh - 40px);padding:0;border:none;border-radius:var(--radius);background:#fff;color:var(--ink);overflow:hidden}
+/* inset:0 + margin:auto centres on both axes without relying on UA defaults.
+   NOTE: the display property MUST stay on .enroll[open] only. Author styles
+   beat the UA `dialog:not([open]){display:none}` rule regardless of
+   specificity, so declaring display here leaves the dialog permanently on
+   screen even when closed. */
+.enroll{position:fixed;inset:0;margin:auto;width:min(560px,calc(100vw - 28px));max-height:min(calc(100vh - 48px),780px);padding:0;border:none;border-radius:var(--radius);background:#fff;color:var(--ink);overflow:hidden;box-shadow:0 24px 60px rgba(10,34,64,.28)}
+.enroll[open]{display:flex;flex-direction:column}
+/* flex column so the body scrolls in whatever space the header leaves, rather
+   than a hardcoded header-height guess */
+.enroll form{display:flex;flex-direction:column;min-height:0}
 .enroll::backdrop{background:rgba(10,34,64,.58)}
-.enroll-head{padding:24px 28px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.enroll-head{flex:none;padding:24px 28px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
 .enroll-head h2{font-size:22px;font-weight:800;color:var(--navy);letter-spacing:-.01em;line-height:1.2}
 .enroll-head p{font-size:14px;color:var(--muted);margin-top:5px}
 .enroll-x{background:none;border:none;font-size:26px;line-height:1;color:var(--muted);cursor:pointer;padding:0 6px;border-radius:8px;flex-shrink:0}
 .enroll-x:hover{background:var(--sand);color:var(--navy)}
 .enroll-x:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
-.enroll-body{padding:20px 28px 26px;overflow-y:auto;max-height:calc(100vh - 190px)}
+.enroll-body{flex:1;min-height:0;padding:20px 28px 26px;overflow-y:auto}
 .field{display:grid;gap:6px;margin-bottom:15px}
 .field label{font-size:13.5px;font-weight:700;color:var(--navy)}
 .field .req{color:var(--teal)}
