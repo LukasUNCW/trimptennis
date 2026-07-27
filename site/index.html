@@ -180,6 +180,33 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
 .foot-brand p{margin-top:14px;max-width:34ch}
 .foot-bottom{border-top:1px solid rgba(255,255,255,.14);padding-top:24px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:13px;color:#8FA1B8}
 
+/* enrollment dialog */
+.enroll{width:min(560px,calc(100vw - 28px));max-height:calc(100vh - 40px);padding:0;border:none;border-radius:var(--radius);background:#fff;color:var(--ink);overflow:hidden}
+.enroll::backdrop{background:rgba(10,34,64,.58)}
+.enroll-head{padding:24px 28px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.enroll-head h2{font-size:22px;font-weight:800;color:var(--navy);letter-spacing:-.01em;line-height:1.2}
+.enroll-head p{font-size:14px;color:var(--muted);margin-top:5px}
+.enroll-x{background:none;border:none;font-size:26px;line-height:1;color:var(--muted);cursor:pointer;padding:0 6px;border-radius:8px;flex-shrink:0}
+.enroll-x:hover{background:var(--sand);color:var(--navy)}
+.enroll-x:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.enroll-body{padding:20px 28px 26px;overflow-y:auto;max-height:calc(100vh - 190px)}
+.field{display:grid;gap:6px;margin-bottom:15px}
+.field label{font-size:13.5px;font-weight:700;color:var(--navy)}
+.field .req{color:var(--teal)}
+.field input,.field select,.field textarea{font-family:inherit;font-size:15px;color:var(--ink);padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;background:#fff;width:100%}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(7,122,120,.16)}
+.field textarea{resize:vertical;min-height:74px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.enroll-msg{font-size:14px;padding:11px 14px;border-radius:10px;margin-bottom:16px;background:#FDECEC;border-left:4px solid #C0392B;color:#7B241C}
+.enroll-note{font-size:12.5px;color:var(--muted);margin-top:14px;line-height:1.5}
+.enroll-done{padding:38px 30px 42px;text-align:center}
+.enroll-done .tick{width:56px;height:56px;border-radius:50%;background:var(--teal);color:#fff;display:grid;place-items:center;font-size:27px;font-weight:700;margin:0 auto 18px}
+.enroll-done h3{font-size:21px;font-weight:800;color:var(--navy);margin-bottom:10px}
+.enroll-done p{font-size:15px;color:var(--muted);max-width:42ch;margin:0 auto 22px}
+.enroll button[disabled]{opacity:.55;cursor:not-allowed;transform:none}
+[hidden]{display:none!important}
+@media (max-width:560px){.field-row{grid-template-columns:1fr}.enroll-head,.enroll-body{padding-left:20px;padding-right:20px}}
+
 /* motion */
 @media (prefers-reduced-motion:no-preference){
   .rise{opacity:0;transform:translateY(14px);animation:rise .6s ease forwards}
@@ -217,7 +244,7 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
     </div>
     <div class="right">
       <a href="#">Log in</a>
-      <a href="#"><b style="color:var(--gold)">Register</b></a>
+      <a href="#" data-enroll=""><b style="color:var(--gold)">Register</b></a>
     </div>
   </div>
 </div>
@@ -236,7 +263,7 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
       <li><a href="#">Contact</a></li>
     </ul>
     <div class="nav-cta">
-      <a class="btn btn-gold" href="#">Register now</a>
+      <a class="btn btn-gold" href="#" data-enroll="">Register now</a>
     </div>
   </div>
 </header>
@@ -245,7 +272,7 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
   <div class="wrap">
     <span class="tag">Now open</span>
     <span>Summer morning camp for kids — enrollment is live.</span>
-    <a href="#"><b>Save a spot →</b></a>
+    <a href="#" data-enroll="summer-camp"><b>Save a spot →</b></a>
   </div>
 </div>
 
@@ -290,7 +317,7 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
       <a class="more" href="#">See the full schedule →</a>
     </div>
     <div class="prog-grid">
-      <a class="prog-card" href="#">
+      <a class="prog-card" href="#" data-enroll="groms">
         <div class="prog-media m1"><span class="photo-hint">Photo — Grom's clinic</span></div>
         <div class="prog-body">
           <span class="prog-meta">Ages 6–10 · Ten weeks</span>
@@ -299,7 +326,7 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
           <span class="prog-link">Explore Grom's →</span>
         </div>
       </a>
-      <a class="prog-card" href="#">
+      <a class="prog-card" href="#" data-enroll="shredders">
         <div class="prog-media m2"><span class="photo-hint">Photo — Shredder's clinic</span></div>
         <div class="prog-body">
           <span class="prog-meta">Ages 11–16 · Ten weeks</span>
@@ -308,7 +335,7 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
           <span class="prog-link">Explore Shredder's →</span>
         </div>
       </a>
-      <a class="prog-card" href="#">
+      <a class="prog-card" href="#" data-enroll="elite">
         <div class="prog-media m3"><span class="photo-hint">Photo — Elite Academy</span>
           <span class="prog-badge">Year-round</span>
         </div>
@@ -325,7 +352,7 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
         <b>Adults play here too.</b>
         <span> Clinics and lessons for every level, beginner to advanced.</span>
       </div>
-      <a class="btn btn-ghost" href="#" style="padding:11px 22px;font-size:14px">Adult programs →</a>
+      <a class="btn btn-ghost" href="#" data-enroll="adult" style="padding:11px 22px;font-size:14px">Adult programs →</a>
     </div>
   </div>
 </section>
@@ -486,11 +513,11 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
       <div>
         <h4>Programs</h4>
         <ul>
-          <li><a href="#">Grom's (6–10)</a></li>
-          <li><a href="#">Shredder's (11–16)</a></li>
-          <li><a href="#">Elite Academy</a></li>
-          <li><a href="#">Adult programs</a></li>
-          <li><a href="#">Summer camp</a></li>
+          <li><a href="#" data-enroll="groms">Grom's (6–10)</a></li>
+          <li><a href="#" data-enroll="shredders">Shredder's (11–16)</a></li>
+          <li><a href="#" data-enroll="elite">Elite Academy</a></li>
+          <li><a href="#" data-enroll="adult">Adult programs</a></li>
+          <li><a href="#" data-enroll="summer-camp">Summer camp</a></li>
         </ul>
       </div>
       <div>
@@ -509,6 +536,233 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
     </div>
   </div>
 </footer>
+
+<dialog class="enroll" id="enrollDialog" aria-labelledby="enrollTitle">
+  <form id="enrollForm" novalidate>
+    <div class="enroll-head">
+      <div>
+        <h2 id="enrollTitle">Enroll a player</h2>
+        <p id="enrollSub">Tell us who's playing — payment comes next.</p>
+      </div>
+      <button type="button" class="enroll-x" data-enroll-close aria-label="Close">&times;</button>
+    </div>
+    <div class="enroll-body">
+      <div class="enroll-msg" id="enrollErr" role="alert" hidden></div>
+
+      <div class="field">
+        <label for="ef-program">Program <span class="req">*</span></label>
+        <select id="ef-program" name="program" required></select>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="ef-player">Player's full name <span class="req">*</span></label>
+          <input id="ef-player" name="player_name" maxlength="100" required>
+        </div>
+        <div class="field">
+          <label for="ef-age">Age group <span class="req">*</span></label>
+          <select id="ef-age" name="age_group" required></select>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="ef-parent">Parent / guardian <span class="req">*</span></label>
+          <input id="ef-parent" name="parent_name" maxlength="100" autocomplete="name" required>
+        </div>
+        <div class="field">
+          <label for="ef-phone">Phone</label>
+          <input id="ef-phone" name="phone" type="tel" maxlength="40" autocomplete="tel">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="ef-email">Email <span class="req">*</span></label>
+        <input id="ef-email" name="parent_email" type="email" maxlength="200" autocomplete="email" required>
+      </div>
+
+      <div class="field">
+        <label for="ef-notes">Anything we should know?</label>
+        <textarea id="ef-notes" name="notes" maxlength="2000"></textarea>
+      </div>
+
+      <div id="ef-turnstile"></div>
+
+      <button type="submit" class="btn btn-teal" id="ef-submit">Continue to payment</button>
+      <p class="enroll-note">Payment is handled by QuickBooks — card details never touch this site. You'll get a confirmation by email.</p>
+    </div>
+  </form>
+
+  <div class="enroll-done" id="enrollDone" hidden>
+    <div class="tick" aria-hidden="true">&check;</div>
+    <h3 id="ef-doneTitle">You're enrolled</h3>
+    <p id="ef-doneMsg"></p>
+    <button type="button" class="btn btn-ghost" data-enroll-close>Close</button>
+  </div>
+</dialog>
+
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+<script>
+(() => {
+  // TEST key — Cloudflare's documented always-passes widget, so the form is
+  // usable before a real Turnstile site is created. Swap this for the real
+  // site key and run `wrangler secret put TURNSTILE_SECRET` before launch,
+  // or the form has no bot protection at all.
+  const TURNSTILE_SITE_KEY = '1x00000000000000000000AA';
+
+  const dlg      = document.getElementById('enrollDialog');
+  const form     = document.getElementById('enrollForm');
+  const done     = document.getElementById('enrollDone');
+  const errBox   = document.getElementById('enrollErr');
+  const submitBt = document.getElementById('ef-submit');
+  const progSel  = document.getElementById('ef-program');
+  const ageSel   = document.getElementById('ef-age');
+  const subtitle = document.getElementById('enrollSub');
+
+  let programs = null;   // catalog from /api/programs, fetched once
+  let widgetId = null;   // Turnstile widget handle, so we can reset it
+
+  const showErr = (msg) => { errBox.textContent = msg; errBox.hidden = false; };
+  const clearErr = () => { errBox.hidden = true; };
+
+  async function loadPrograms() {
+    if (programs) return programs;
+    const res = await fetch('/api/programs');
+    if (!res.ok) throw new Error('Could not load programs');
+    programs = await res.json();
+    progSel.innerHTML = '<option value="">Choose a program…</option>' +
+      programs.map((p) => `<option value="${p.slug}">${p.name}</option>`).join('');
+    return programs;
+  }
+
+  // Age groups are per-program, so they refill whenever the program changes.
+  function syncAgeGroups() {
+    const p = programs?.find((x) => x.slug === progSel.value);
+    const groups = p?.ageGroups ?? [];
+    ageSel.innerHTML = groups.length
+      ? groups.map((g) => `<option value="${g}">${g}</option>`).join('')
+      : '<option value="">Choose a program first</option>';
+    ageSel.disabled = groups.length === 0;
+    subtitle.textContent = p && !p.payable
+      ? "We'll follow up by phone to take payment for this program."
+      : "Tell us who's playing — payment comes next.";
+  }
+
+  const turnstileReady = (timeoutMs = 8000) => {
+    if (window.turnstile) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const started = Date.now();
+      const timer = setInterval(() => {
+        if (window.turnstile) { clearInterval(timer); resolve(true); }
+        else if (Date.now() - started > timeoutMs) { clearInterval(timer); resolve(false); }
+      }, 100);
+    });
+  };
+
+  // The Turnstile script is async, so a quick click can land before it exists.
+  // Keep submit disabled until the widget is actually mounted — otherwise the
+  // form looks ready but every attempt fails the bot gate with no explanation.
+  async function mountTurnstile() {
+    submitBt.disabled = true;
+    if (!(await turnstileReady())) {
+      showErr('The verification check could not load — please refresh and try again.');
+      return;
+    }
+    if (widgetId === null) {
+      widgetId = window.turnstile.render('#ef-turnstile', { sitekey: TURNSTILE_SITE_KEY });
+    } else {
+      window.turnstile.reset(widgetId);
+    }
+    submitBt.disabled = false;
+  }
+
+  async function open(slug) {
+    clearErr();
+    form.hidden = false;
+    done.hidden = true;
+    submitBt.textContent = 'Continue to payment';
+    if (!dlg.open) dlg.showModal();
+
+    try {
+      await loadPrograms();
+      if (slug && programs.some((p) => p.slug === slug)) progSel.value = slug;
+      syncAgeGroups();
+    } catch {
+      showErr('Could not load the program list. Please refresh and try again.');
+    }
+    await mountTurnstile();
+  }
+
+  document.addEventListener('click', (e) => {
+    const trigger = e.target.closest('[data-enroll]');
+    if (trigger) { e.preventDefault(); open(trigger.getAttribute('data-enroll') || ''); return; }
+    if (e.target.closest('[data-enroll-close]')) dlg.close();
+  });
+
+  progSel.addEventListener('change', syncAgeGroups);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearErr();
+
+    const body = {
+      program:      progSel.value,
+      player_name:  document.getElementById('ef-player').value,
+      age_group:    ageSel.value,
+      parent_name:  document.getElementById('ef-parent').value,
+      parent_email: document.getElementById('ef-email').value,
+      phone:        document.getElementById('ef-phone').value,
+      notes:        document.getElementById('ef-notes').value
+    };
+
+    if (!body.program)                       return showErr('Please choose a program.');
+    if (!body.player_name.trim())            return showErr("Please enter the player's name.");
+    if (!body.age_group)                     return showErr('Please choose an age group.');
+    if (!body.parent_name.trim())            return showErr('Please enter a parent or guardian name.');
+    if (!body.parent_email.includes('@'))    return showErr('Please enter a valid email address.');
+
+    if (!window.turnstile || widgetId === null) {
+      return showErr('The verification widget did not load. Please refresh and try again.');
+    }
+    body.turnstileToken = window.turnstile.getResponse(widgetId);
+    if (!body.turnstileToken) return showErr('Please complete the verification check.');
+
+    submitBt.disabled = true;
+    submitBt.textContent = 'Submitting…';
+
+    let data;
+    try {
+      const res = await fetch('/api/enroll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Something went wrong.');
+    } catch (err) {
+      submitBt.disabled = false;
+      submitBt.textContent = 'Continue to payment';
+      window.turnstile.reset(widgetId);   // tokens are single-use
+      return showErr(err.message === 'Failed to fetch'
+        ? 'Network problem — please check your connection and try again.'
+        : err.message);
+    }
+
+    // Enrollment is saved either way. payUrl is null until the office has
+    // created that program's QuickBooks payment link.
+    if (data.payUrl) {
+      submitBt.textContent = 'Redirecting to payment…';
+      window.location.href = data.payUrl;
+      return;
+    }
+    form.hidden = true;
+    done.hidden = false;
+    document.getElementById('ef-doneTitle').textContent = 'Got it — you’re on the list';
+    document.getElementById('ef-doneMsg').textContent =
+      "We've saved the enrollment and emailed the academy. Someone will call you to take payment and confirm the schedule.";
+  });
+})();
+</script>
 
 </body>
 </html>

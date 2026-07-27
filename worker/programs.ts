@@ -56,3 +56,17 @@ export const PROGRAMS: Record<string, Program> = {
 
 export const lookupProgram = (slug: unknown): Program | null =>
   typeof slug === 'string' && Object.hasOwn(PROGRAMS, slug) ? PROGRAMS[slug] : null;
+
+/**
+ * Public catalog for the enrollment form. The form builds its program and
+ * age-group menus from this, so the values it submits always match what
+ * /api/enroll validates against — no duplicated list in the HTML to drift.
+ * payUrl is deliberately withheld: it is only needed in the POST response.
+ */
+export const listPrograms = () =>
+  Object.entries(PROGRAMS).map(([slug, p]) => ({
+    slug,
+    name: p.name,
+    ageGroups: p.ageGroups,
+    payable: p.payUrl !== null
+  }));

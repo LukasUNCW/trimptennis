@@ -3,6 +3,7 @@
 //   1. Static site — requests matching files in ./site are served automatically
 //      by the assets layer and never reach this code.
 //   2. API routes — everything else lands here:
+//        GET  /api/programs  catalog the enrollment form builds its menus from
 //        POST /api/enroll    enrollment form → D1 + email, returns the
 //                            QuickBooks payment link to redirect the parent to
 //        POST /api/inquiry   free-trial / contact form → D1 + email (Turnstile-gated)
@@ -16,7 +17,7 @@
 // group) because that is the part QuickBooks does not track.
 
 import type { Env } from './types';
-import { lookupProgram } from './programs';
+import { lookupProgram, listPrograms } from './programs';
 import { buildAuthUrl, exchangeCodeForTokens, listItems } from './qbo';
 import { notifyEnrollment, notifyInquiry } from './email';
 
@@ -26,6 +27,9 @@ export default {
     const { pathname } = url;
 
     try {
+      if (request.method === 'GET' && pathname === '/api/programs') {
+        return json(listPrograms());
+      }
       if (request.method === 'POST' && pathname === '/api/enroll') {
         return await handleEnroll(request, env, ctx);
       }
