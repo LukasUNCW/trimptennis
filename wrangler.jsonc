@@ -22,10 +22,9 @@
     }
   ],
 
-  // Nightly retry sweep for QuickBooks syncs (07:00 UTC ≈ 3am ET)
-  "triggers": {
-    "crons": ["0 7 * * *"]
-  },
+  // No cron for now. The nightly sweep existed to retry QuickBooks sales-receipt
+  // writes; QuickBooks Payments records sales itself, so there is nothing to
+  // retry. A cron returns when we reconcile QuickBooks Payments → enrollments.
 
   // Non-secret config. Secrets (API keys) are set with `wrangler secret put`.
   "vars": {

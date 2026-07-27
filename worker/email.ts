@@ -26,22 +26,39 @@ const esc = (s: unknown) =>
   String(s ?? '—').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 
+const row = (label: string, value: string) =>
+  `<tr><td style="padding:4px 12px 4px 0;vertical-align:top"><b>${label}</b></td><td>${value}</td></tr>`;
+
+/**
+ * Sent the moment an enrollment form is submitted — which is BEFORE the parent
+ * has paid, because QuickBooks (not this Worker) processes the payment. The
+ * status line says plainly whether money is expected via a payment link or a
+ * monthly invoice from the office, so nobody mistakes this for a receipt.
+ */
 export async function notifyEnrollment(env: Env, e: {
-  parent_name: string | null; parent_email: string | null;
+  parent_name: string | null; parent_email: string | null; phone: string | null;
   player_name: string | null; age_group: string | null;
-  program: string; amount_cents: number; mode: string;
+  program: string; payment_status: string; notes: string | null;
+  /** Elite Academy — the payment link covered month one only. */
+  autoDraftFollowUp?: boolean;
 }): Promise<void> {
-  const amount = `$${(e.amount_cents / 100).toFixed(2)}`;
-  const kind = e.mode === 'subscription' ? 'New membership' : 'New enrollment';
-  await send(env, `${kind}: ${e.player_name ?? e.parent_name ?? 'Unknown'} — ${e.program} (${amount})`, `
-    <h2 style="margin:0 0 12px">${esc(kind)} 🎾</h2>
+  await send(env, `New enrollment: ${e.player_name ?? e.parent_name ?? 'Unknown'} — ${e.program}`, `
+    <h2 style="margin:0 0 12px">New enrollment 🎾</h2>
     <table style="font-family:sans-serif;font-size:14px;border-collapse:collapse">
-      <tr><td style="padding:4px 12px 4px 0"><b>Program</b></td><td>${esc(e.program)}</td></tr>
-      <tr><td style="padding:4px 12px 4px 0"><b>Player</b></td><td>${esc(e.player_name)} (${esc(e.age_group)})</td></tr>
-      <tr><td style="padding:4px 12px 4px 0"><b>Parent</b></td><td>${esc(e.parent_name)} — ${esc(e.parent_email)}</td></tr>
-      <tr><td style="padding:4px 12px 4px 0"><b>Amount</b></td><td>${amount}${e.mode === 'subscription' ? ' / month' : ''}</td></tr>
+      ${row('Program', esc(e.program))}
+      ${row('Player', `${esc(e.player_name)} (${esc(e.age_group)})`)}
+      ${row('Parent', `${esc(e.parent_name)} — ${esc(e.parent_email)}`)}
+      ${row('Phone', esc(e.phone))}
+      ${e.notes ? row('Notes', esc(e.notes)) : ''}
+      ${row('Payment', 'Sent to the QuickBooks payment link — confirm in QuickBooks that it arrived.')}
     </table>
-    <p style="font-family:sans-serif;font-size:13px;color:#666">Full details are in the Stripe dashboard. Bookkeeping syncs to QuickBooks automatically.</p>`);
+    ${e.autoDraftFollowUp ? `
+    <p style="font-family:sans-serif;font-size:14px;background:#FFF4D6;border-left:4px solid #F5B72E;padding:12px 14px;margin:16px 0 0">
+      <b>Follow-up:</b> this payment covers the first month only. Set up auto draft
+      in QuickBooks once ${esc(e.player_name)} has attended a month.</p>` : ''}
+    <p style="font-family:sans-serif;font-size:13px;color:#666">
+      This is a signup notification, not a payment confirmation. QuickBooks is the
+      record of what was actually paid.</p>`);
 }
 
 export async function notifyInquiry(env: Env, q: {
@@ -52,11 +69,11 @@ export async function notifyInquiry(env: Env, q: {
   await send(env, `${label}: ${q.name}`, `
     <h2 style="margin:0 0 12px">${esc(label)}</h2>
     <table style="font-family:sans-serif;font-size:14px;border-collapse:collapse">
-      <tr><td style="padding:4px 12px 4px 0"><b>Name</b></td><td>${esc(q.name)}</td></tr>
-      <tr><td style="padding:4px 12px 4px 0"><b>Email</b></td><td>${esc(q.email)}</td></tr>
-      <tr><td style="padding:4px 12px 4px 0"><b>Phone</b></td><td>${esc(q.phone)}</td></tr>
-      ${q.player_name ? `<tr><td style="padding:4px 12px 4px 0"><b>Player</b></td><td>${esc(q.player_name)} (${esc(q.age_group)})</td></tr>` : ''}
-      ${q.message ? `<tr><td style="padding:4px 12px 4px 0;vertical-align:top"><b>Message</b></td><td>${esc(q.message)}</td></tr>` : ''}
+      ${row('Name', esc(q.name))}
+      ${row('Email', esc(q.email))}
+      ${row('Phone', esc(q.phone))}
+      ${q.player_name ? row('Player', `${esc(q.player_name)} (${esc(q.age_group)})`) : ''}
+      ${q.message ? row('Message', esc(q.message)) : ''}
     </table>
     <p style="font-family:sans-serif;font-size:13px;color:#666">Reply directly to reach them: ${esc(q.email)}</p>`);
 }

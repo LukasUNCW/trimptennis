@@ -1,24 +1,19 @@
 // worker/qbo.ts
-// QuickBooks Online sync — the Velo package ported to Workers.
-// Tokens live in D1 (qbo_tokens, single row) because Intuit rotates the
-// refresh token and Worker secrets aren't writable at runtime.
+// QuickBooks Online connection — OAuth only.
+//
+// Payments are taken by QuickBooks Payments, so QuickBooks records the sale
+// itself; nothing here writes customers or sales receipts. What remains is the
+// authorized connection, kept for read-side work: listing Items during setup
+// and (next) matching QuickBooks Payments back to enrollment rows so the roster
+// can show who has actually paid.
+//
+// Tokens live in D1 (qbo_tokens, single row) because Intuit rotates the refresh
+// token and Worker secrets aren't writable at runtime.
 
-import type { Env, EnrollmentRow } from './types';
+import type { Env } from './types';
 
 const TOKEN_URL = 'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer';
 const AUTH_URL = 'https://appcenter.intuit.com/connect/oauth2';
-
-// ── Plan → QBO Item mapping ─────────────────────────────────────────────
-// Fill after creating Items in QBO (run /qbo/items?key=ADMIN_KEY to list).
-// Keys must match the `program` metadata set on each Stripe Payment Link.
-const PLAN_ITEM_MAP: Record<string, { itemId: string; description: string }> = {
-  'Elite Academy':       { itemId: 'REPLACE_ME', description: 'Elite Academy membership' },
-  "Grom's":              { itemId: 'REPLACE_ME', description: "Grom's 10-week clinic (ages 6-10)" },
-  "Shredder's":          { itemId: 'REPLACE_ME', description: "Shredder's 10-week clinic (ages 11-16)" },
-  'Summer Morning Camp': { itemId: 'REPLACE_ME', description: 'Summer morning camp' }
-};
-const FALLBACK_ITEM = { itemId: 'REPLACE_ME', description: 'Tennis program enrollment' };
-// ────────────────────────────────────────────────────────────────────────
 
 const apiBase = (env: Env) =>
   env.QBO_SANDBOX === 'true'
@@ -121,83 +116,7 @@ async function qboFetch(env: Env, path: string, init: RequestInit = {}): Promise
   return body;
 }
 
-async function findOrCreateCustomer(env: Env, e: EnrollmentRow): Promise<string> {
-  const email = (e.parent_email ?? '').replace(/'/g, "\\'");
-  if (email) {
-    const q = encodeURIComponent(`select Id from Customer where PrimaryEmailAddr = '${email}'`);
-    const found = await qboFetch(env, `/query?query=${q}`);
-    const hit = found.QueryResponse?.Customer?.[0];
-    if (hit) return hit.Id;
-  }
-  const created = await qboFetch(env, '/customer', {
-    method: 'POST',
-    body: JSON.stringify({
-      DisplayName: `${e.parent_name ?? 'Unknown'} (${e.parent_email ?? e.id})`,
-      PrimaryEmailAddr: e.parent_email ? { Address: e.parent_email } : undefined
-    })
-  });
-  return created.Customer.Id;
-}
-
-async function createSalesReceipt(env: Env, e: EnrollmentRow, customerId: string): Promise<string> {
-  const item = PLAN_ITEM_MAP[e.program] ?? FALLBACK_ITEM;
-  const amount = e.amount_cents / 100;
-  const created = await qboFetch(env, '/salesreceipt', {
-    method: 'POST',
-    body: JSON.stringify({
-      CustomerRef: { value: customerId },
-      TxnDate: new Date().toISOString().slice(0, 10),
-      PrivateNote: `Stripe ${e.id} — ${e.program}${e.player_name ? ` — player: ${e.player_name}` : ''}`,
-      Line: [{
-        Amount: amount,
-        Description: item.description,
-        DetailType: 'SalesItemLineDetail',
-        SalesItemLineDetail: { ItemRef: { value: item.itemId }, Qty: 1, UnitPrice: amount }
-      }]
-    })
-  });
-  return created.SalesReceipt.Id;
-}
-
-/** Sync one enrollment row. Never throws; records outcome on the row. */
-export async function syncEnrollment(env: Env, e: EnrollmentRow): Promise<void> {
-  try {
-    const customerId = await findOrCreateCustomer(env, e);
-    const receiptId = await createSalesReceipt(env, e, customerId);
-    await env.DB
-      .prepare(
-        `UPDATE enrollments SET qbo_status='success', qbo_receipt_id=?1,
-         qbo_attempts=qbo_attempts+1, qbo_last_error=NULL WHERE id=?2`
-      )
-      .bind(receiptId, e.id).run();
-  } catch (err: any) {
-    const notConnected = String(err?.message ?? '').includes('QBO not connected');
-    await env.DB
-      .prepare(
-        `UPDATE enrollments SET qbo_status=?1, qbo_attempts=qbo_attempts+?2,
-         qbo_last_error=?3 WHERE id=?4`
-      )
-      // Stay 'pending' with no attempt burned if QBO simply isn't connected yet.
-      .bind(notConnected ? 'pending' : 'failed', notConnected ? 0 : 1,
-            String(err?.message ?? err), e.id)
-      .run();
-  }
-}
-
-/** Nightly sweep: retry failed (<5 attempts) and pending rows. */
-export async function retryUnsynced(env: Env): Promise<number> {
-  const rows = await env.DB
-    .prepare(
-      `SELECT * FROM enrollments
-       WHERE (qbo_status='failed' AND qbo_attempts < 5) OR qbo_status='pending'
-       LIMIT 50`
-    )
-    .all<EnrollmentRow>();
-  for (const row of rows.results) await syncEnrollment(env, row);
-  return rows.results.length;
-}
-
-/** Setup helper: lists QBO Items so PLAN_ITEM_MAP can be filled in. */
+/** Setup helper: lists QBO Items, so the office can confirm each program exists. */
 export async function listItems(env: Env): Promise<any[]> {
   const q = encodeURIComponent('select Id, Name, Type from Item maxresults 200');
   const res = await qboFetch(env, `/query?query=${q}`);

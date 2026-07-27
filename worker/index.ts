@@ -3,16 +3,21 @@
 //   1. Static site — requests matching files in ./site are served automatically
 //      by the assets layer and never reach this code.
 //   2. API routes — everything else lands here:
-//        POST /webhook       Stripe events → D1 + QBO sync + email to Katie
+//        POST /api/enroll    enrollment form → D1 + email, returns the
+//                            QuickBooks payment link to redirect the parent to
 //        POST /api/inquiry   free-trial / contact form → D1 + email (Turnstile-gated)
 //        GET  /qbo/connect   redirects admin to Intuit authorization (ADMIN_KEY-gated)
 //        GET  /qbo/callback  Intuit OAuth redirect target
-//        GET  /qbo/items     lists QBO Items to fill PLAN_ITEM_MAP (ADMIN_KEY-gated)
-//   Cron (nightly): retries unsynced enrollments.
+//        GET  /qbo/items     lists QBO Items (ADMIN_KEY-gated)
+//
+// Payments are processed by QuickBooks Payments, so money and bookkeeping never
+// leave Intuit — there is no payment webhook to consume and no sales receipt to
+// write. This Worker owns the roster (who signed up, which player, what age
+// group) because that is the part QuickBooks does not track.
 
 import type { Env } from './types';
-import { verifyStripeSignature, extractEnrollment } from './stripe';
-import { buildAuthUrl, exchangeCodeForTokens, syncEnrollment, retryUnsynced, listItems } from './qbo';
+import { lookupProgram } from './programs';
+import { buildAuthUrl, exchangeCodeForTokens, listItems } from './qbo';
 import { notifyEnrollment, notifyInquiry } from './email';
 
 export default {
@@ -21,8 +26,8 @@ export default {
     const { pathname } = url;
 
     try {
-      if (request.method === 'POST' && pathname === '/webhook') {
-        return await handleStripeWebhook(request, env, ctx);
+      if (request.method === 'POST' && pathname === '/api/enroll') {
+        return await handleEnroll(request, env, ctx);
       }
       if (request.method === 'POST' && pathname === '/api/inquiry') {
         return await handleInquiry(request, env, ctx);
@@ -36,7 +41,7 @@ export default {
         const realmId = url.searchParams.get('realmId');
         if (!code || !realmId) return text('Missing code or realmId — restart authorization.', 400);
         await exchangeCodeForTokens(env, url.origin, code, realmId);
-        return text('QuickBooks connected. You can close this tab — enrollments now sync automatically.');
+        return text('QuickBooks connected. You can close this tab.');
       }
       if (request.method === 'GET' && pathname === '/qbo/items') {
         requireAdmin(url, env);
@@ -51,60 +56,71 @@ export default {
       console.error(`Unhandled error on ${pathname}:`, err?.message ?? err);
       return text('Internal error', 500);
     }
-  },
-
-  // Nightly QBO retry sweep (cron in wrangler.jsonc)
-  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(
-      retryUnsynced(env).then((n) => console.log(`QBO retry sweep processed ${n} rows`))
-    );
   }
 } satisfies ExportedHandler<Env>;
 
 // ── Route handlers ───────────────────────────────────────────────────────
 
-async function handleStripeWebhook(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-  const rawBody = await request.text();
-  const valid = await verifyStripeSignature(
-    rawBody, request.headers.get('stripe-signature'), env.STRIPE_WEBHOOK_SECRET
-  );
-  if (!valid) return text('Invalid signature', 400);
+// Records the enrollment BEFORE the parent pays, then hands them off to the
+// program's QuickBooks payment link. We keep the roster row either way: if the
+// parent abandons checkout the office still has the lead, and QuickBooks is the
+// source of truth for whether money actually arrived.
+async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  let body: any;
+  try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
 
-  const event = JSON.parse(rawBody);
+  const human = await verifyTurnstile(env, body.turnstileToken, request.headers.get('CF-Connecting-IP'));
+  if (!human) return json({ error: 'Verification failed — please retry.' }, 403);
 
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-    if (session.payment_status !== 'paid') return text('ok (not paid yet)');
+  const program = lookupProgram(body.program);
+  if (!program) return json({ error: 'Unknown program.' }, 400);
 
-    const e = extractEnrollment(session);
-
-    // Idempotent insert — Stripe retries webhooks, and that's fine.
-    await env.DB
-      .prepare(
-        `INSERT OR IGNORE INTO enrollments
-         (id, parent_name, parent_email, player_name, age_group, program,
-          amount_cents, currency, mode, stripe_customer_id)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)`
-      )
-      .bind(e.id, e.parent_name, e.parent_email, e.player_name, e.age_group,
-            e.program, e.amount_cents, e.currency, e.mode, e.stripe_customer_id)
-      .run();
-
-    // Email + QBO happen after we ACK Stripe — never block or fail the webhook.
-    ctx.waitUntil(notifyEnrollment(env, e));
-    ctx.waitUntil(
-      env.DB.prepare('SELECT * FROM enrollments WHERE id = ?1').bind(e.id).first<any>()
-        .then((row) => (row ? syncEnrollment(env, row) : undefined))
-    );
+  const parent_name = str(body.parent_name, 100);
+  const parent_email = str(body.parent_email, 200);
+  const player_name = str(body.player_name, 100);
+  if (!parent_name || !parent_email || !parent_email.includes('@') || !player_name) {
+    return json({ error: "Parent name, a valid email, and the player's name are required." }, 400);
   }
 
-  // Other event types (invoice.paid renewals, refunds) are acknowledged and
-  // ignored in v1 — logged so we can see what's flowing before we handle them.
-  else {
-    console.log('Unhandled Stripe event type:', event.type);
+  const age_group = str(body.age_group, 40);
+  if (!age_group || !program.ageGroups.includes(age_group)) {
+    return json({ error: `Choose an age group: ${program.ageGroups.join(', ')}` }, 400);
   }
 
-  return text('ok');
+  const row = {
+    id: crypto.randomUUID(),
+    parent_name,
+    parent_email,
+    phone: str(body.phone, 40),
+    player_name,
+    age_group,
+    program: program.name,
+    payment_status: 'awaiting_payment',
+    notes: str(body.notes, 2000)
+  };
+
+  await env.DB
+    .prepare(
+      `INSERT INTO enrollments
+       (id, parent_name, parent_email, phone, player_name, age_group, program, payment_status, notes)
+       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)`
+    )
+    .bind(row.id, row.parent_name, row.parent_email, row.phone, row.player_name,
+          row.age_group, row.program, row.payment_status, row.notes)
+    .run();
+
+  ctx.waitUntil(notifyEnrollment(env, {
+    ...row,
+    autoDraftFollowUp: program.autoDraftAfterFirstMonth === true
+  }));
+
+  return json({
+    ok: true,
+    enrollmentId: row.id,
+    // null until Katie has created this program's payment link — the site then
+    // shows a "the office will follow up" confirmation instead of redirecting.
+    payUrl: program.payUrl
+  });
 }
 
 async function handleInquiry(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {

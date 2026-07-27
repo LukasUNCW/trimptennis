@@ -1,28 +1,32 @@
 -- schema.sql — run once against the D1 database (see SETUP.md)
 
--- Paid signups, mirrored from Stripe checkout.session.completed webhooks.
--- QBO sync status lives on the row itself: 'pending' → 'success' | 'failed'.
--- Rows stuck at pending/failed are retried by the nightly cron — which means
--- enrollments taken BEFORE QuickBooks is connected backfill automatically.
+-- Enrollments captured by our own form, BEFORE the parent is handed off to a
+-- QuickBooks payment link. QuickBooks Payments processes the money and records
+-- the sale, so this table is the roster — who signed up, which player, what age
+-- group — which is precisely what QuickBooks does not track.
+--
+-- payment_status is our best knowledge, not the source of truth:
+--   awaiting_payment — sent to a QuickBooks payment link, not yet confirmed
+--   paid             — matched to a QuickBooks Payment
+--   abandoned        — never paid (set by hand, or by a future sweep)
+--
+-- Elite Academy is no different here: the payment link covers month one, then
+-- the office sets up auto draft in QuickBooks.
 CREATE TABLE IF NOT EXISTS enrollments (
-  id TEXT PRIMARY KEY,              -- Stripe checkout session id (idempotency key)
+  id TEXT PRIMARY KEY,              -- crypto.randomUUID()
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   parent_name TEXT,
   parent_email TEXT,
+  phone TEXT,
   player_name TEXT,
   age_group TEXT,
-  program TEXT NOT NULL,            -- from Payment Link metadata: "Grom's", "Elite Academy", ...
-  amount_cents INTEGER NOT NULL,
-  currency TEXT NOT NULL DEFAULT 'usd',
-  mode TEXT NOT NULL,               -- 'payment' (one-time) | 'subscription'
-  stripe_customer_id TEXT,
-  qbo_status TEXT NOT NULL DEFAULT 'pending',   -- pending | success | failed | skipped
-  qbo_receipt_id TEXT,
-  qbo_attempts INTEGER NOT NULL DEFAULT 0,
-  qbo_last_error TEXT
+  program TEXT NOT NULL,            -- display name from worker/programs.ts
+  payment_status TEXT NOT NULL DEFAULT 'awaiting_payment',
+  qbo_payment_id TEXT,              -- QuickBooks Payment id, once reconciled
+  notes TEXT
 );
 
-CREATE INDEX IF NOT EXISTS idx_enrollments_qbo ON enrollments (qbo_status);
+CREATE INDEX IF NOT EXISTS idx_enrollments_payment ON enrollments (payment_status);
 CREATE INDEX IF NOT EXISTS idx_enrollments_program ON enrollments (program);
 
 -- Non-payment form submissions: free trial requests, contact form.
