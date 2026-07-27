@@ -1,0 +1,39 @@
+// wrangler.jsonc — replaces the bot-generated config at the repo root.
+// One Worker: serves the static site from ./site AND runs the API routes.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "trimptennis",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-07-01",
+
+  // Static site: requests that match a file in ./site are served directly;
+  // everything else (e.g. /webhook, /api/*) invokes the Worker code.
+  "assets": {
+    "directory": "./site",
+    "binding": "ASSETS"
+  },
+
+  // D1 database — fill in database_id after running `wrangler d1 create` (see SETUP.md)
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "trimptennis-db",
+      "database_id": "5edd45d3-5c61-4771-940c-c93edc981f31"
+    }
+  ],
+
+  // Nightly retry sweep for QuickBooks syncs (07:00 UTC ≈ 3am ET)
+  "triggers": {
+    "crons": ["0 7 * * *"]
+  },
+
+  // Non-secret config. Secrets (API keys) are set with `wrangler secret put`.
+  "vars": {
+    "QBO_SANDBOX": "true",
+    "NOTIFY_EMAIL": "info@seahawkstennisacademy.com",
+    "FROM_EMAIL": "onboarding@resend.dev",
+    "SITE_NAME": "Seahawks Tennis Academy"
+  },
+
+  "observability": { "enabled": true }
+}

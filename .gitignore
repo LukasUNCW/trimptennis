@@ -141,3 +141,8 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Cloudflare Wrangler — local state + local secrets (never commit)
+.wrangler/
+.dev.vars
+.dev.vars.*
