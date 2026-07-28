@@ -31,20 +31,23 @@ export interface Program {
   selfEnroll?: boolean;
 }
 
+// Age ranges match the academy's own programme pages, which overlap
+// deliberately: a 10-year-old could be in either Grom's or Shredder's depending
+// on whether they can rally and keep score.
 export const PROGRAMS: Record<string, Program> = {
   groms: {
     name: "Grom's",
-    ageGroups: ['6-10'],
+    ageGroups: ['6-12'],
     payUrl: null
   },
   shredders: {
     name: "Shredder's",
-    ageGroups: ['11-16'],
+    ageGroups: ['9-16'],
     payUrl: null
   },
   'summer-camp': {
     name: 'Summer Morning Camp',
-    ageGroups: ['6-10', '11-16'],
+    ageGroups: ['6-12', '9-16'],
     payUrl: null
   },
   elite: {
