@@ -47,7 +47,12 @@ export const PROGRAMS: Record<string, Program> = {
   },
   'summer-camp': {
     name: 'Summer Morning Camp',
-    ageGroups: ['6-12', '9-16'],
+    // Camp takes 7-18, wider than the two clinics. '13-18' is here because
+    // without it a 16- or 17-year-old had no age group to choose and the enrol
+    // route rejected them outright — the page advertised a range the form would
+    // not accept. NEEDS CONFIRMING with the office: these are the bands the
+    // office reads off enrolments, and they may split camp differently.
+    ageGroups: ['6-12', '9-16', '13-18'],
     payUrl: null
   },
   elite: {
