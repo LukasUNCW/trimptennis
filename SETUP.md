@@ -56,7 +56,7 @@ Camp, Elite (one month), Adult. They go into `payUrl` in `worker/programs.ts` �
 until then the form saves the enrolment and shows "the office will follow up"
 instead of redirecting.
 
-**3. Answer four questions:**
+**3. Answer three questions:**
 
 - **Schedule** — is the calendar informational, or do parents register for
   specific sessions? Informational means the office maintains it in Google
@@ -65,7 +65,11 @@ instead of redirecting.
   or a large one.
 - **Adult rates** — their old page publishes none, so `/adults` says "ask us".
 - **Autumn Grom's dates** — the page still shows a summer session ending 20 Aug.
-- **"Mait DuBois"** — the photo they sent was filed as "matt". Which is right?
+
+**"Mait DuBois" is settled — do not ask them.** The photo they sent was filed as
+"matt", but UNCW's own athletics site spells it Mait in the men's tennis roster,
+the staff directory and its press releases. The site, the source photo and the
+image job already use Mait, so nothing needs changing.
 
 ## Outstanding — DNS
 
