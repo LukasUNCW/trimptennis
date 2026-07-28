@@ -38,7 +38,9 @@
 
   signedOut();
 
-  fetch('/api/me', { headers: { Accept: 'application/json' } })
+  // cache:'no-store' as well as the server's header — this response flips the
+  // moment someone signs in or out, so a stale copy shows the wrong bar.
+  fetch('/api/me', { cache: 'no-store', headers: { Accept: 'application/json' } })
     .then((r) => (r.ok ? r.json() : null))
     .then((user) => { if (user && user.email) signedIn(user); })
     .catch(() => { /* stay signed out */ });

@@ -489,5 +489,14 @@ const str = (v: unknown, max: number): string | null =>
 const text = (s: string, status = 200) =>
   new Response(s, { status, headers: { 'Content-Type': 'text/plain' } });
 
+// Cache-Control: no-store on every JSON response, not just the signed-in ones.
+// The 401 from /api/me carried no cache directives, so it was cacheable by
+// heuristic — a visitor who loaded the site signed out got that 401 stored, and
+// after signing in the nav read the cached copy and still showed "Log in" even
+// though the session was real. Any response whose body depends on a cookie must
+// say so explicitly.
 const json = (data: unknown, status = 200) =>
-  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+  new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
+  });
