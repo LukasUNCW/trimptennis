@@ -353,6 +353,19 @@ async function handleChildMutation(request: Request, env: Env, childId: string):
   if (!owned) return json({ error: 'Not found.' }, 404);
 
   if (request.method === 'DELETE') {
+    // Detach any enrolments first. SQLite does not enforce the REFERENCES
+    // clause unless foreign keys are switched on, so deleting the child alone
+    // left enrolments pointing at a row that no longer existed.
+    //
+    // Detaching rather than cascading is deliberate: an enrolment is a record of
+    // something that happened, and it already stores player_name in its own
+    // right, so clearing child_id loses the link without losing who played.
+    // Deleting the enrolment would destroy roster and payment history because a
+    // parent tidied up their account.
+    await env.DB
+      .prepare('UPDATE enrollments SET child_id = NULL WHERE child_id = ?1 AND account_id = ?2')
+      .bind(childId, user.account_id)
+      .run();
     await env.DB
       .prepare('DELETE FROM children WHERE id = ?1 AND account_id = ?2')
       .bind(childId, user.account_id)

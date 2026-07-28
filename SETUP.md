@@ -141,8 +141,9 @@ npm run test:enroll
 
 They run against the **deployed** Worker and create throwaway accounts under
 `acctest-*@example.com` and `enrtest-*@example.com`, deleting them at the end.
-26 assertions, including that one account cannot read or modify another's
-children.
+32 assertions, including that one account cannot read or modify another's
+children, and that removing a player detaches its enrolments instead of
+deleting them.
 
 ## Reference
 
@@ -226,6 +227,9 @@ they can be revoked. Design notes and the phase plan are in `docs/ACCOUNTS.md`.
   EXIF rotation before measuring or a portrait phone photo measures as landscape.
 - **Any response that depends on a cookie needs `Cache-Control: no-store`.** A
   cached 401 from `/api/me` makes a signed-in visitor look signed out.
+- **SQLite does not enforce `REFERENCES` unless foreign keys are switched on.**
+  Deleting a row that others point at succeeds and leaves them dangling, so the
+  code has to detach dependents itself — see the child delete handler.
 - **Layout-critical image cropping belongs in the file, not in CSS.** Tiles that
   must line up are pre-cropped by `npm run images`; leaving it to `object-fit`
   produced three different heights.

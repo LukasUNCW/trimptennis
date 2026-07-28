@@ -106,6 +106,20 @@ ok('enrolment joins back to its account and child',
    joined[0]?.account_email === A_EMAIL && joined[0]?.child_first === 'Linked',
    JSON.stringify(joined));
 
+console.log('\n— removing a player detaches its enrolments, never deletes them —');
+const delRes = await fetch(`${B}/api/children/${childId}`, { method: 'DELETE', headers: { Cookie: A } });
+ok('child deleted', delRes.status === 200, String(delRes.status));
+
+const after = query(`SELECT player_name, child_id, account_id FROM enrollments WHERE id = '${rowId}'`);
+ok('the enrolment still exists after the player is removed', after.length === 1, JSON.stringify(after));
+ok('child_id was cleared rather than left dangling', after[0]?.child_id === null, String(after[0]?.child_id));
+ok('player_name survives, so the roster is intact', after[0]?.player_name === 'Linked Player', after[0]?.player_name);
+ok('account_id is untouched', !!after[0]?.account_id);
+
+const orphans = query(`SELECT COUNT(*) AS n FROM enrollments e
+  WHERE e.child_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM children c WHERE c.id = e.child_id)`);
+ok('no orphaned child_id anywhere in the table', Number(orphans[0]?.n) === 0, JSON.stringify(orphans));
+
 console.log('\n— guest enrolments still allowed (nullable) —');
 const guestRow = randomBytes(8).toString('hex');
 d1(`INSERT INTO enrollments (id,parent_email,player_name,program,payment_status)
