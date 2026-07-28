@@ -54,7 +54,9 @@ What that means in practice:
 **2. Create five payment links** and send them over: Grom's, Shredder's, Summer
 Camp, Elite (one month), Adult. They go into `payUrl` in `worker/programs.ts` —
 until then the form saves the enrolment and shows "the office will follow up"
-instead of redirecting.
+instead of redirecting. Our side is ready: see "Prove the first real link" below,
+and send them **one at a time** if that is easier, because a program with no link
+simply keeps the follow-up path.
 
 **3. Answer three questions:**
 
@@ -105,6 +107,63 @@ Edit `payUrl` for that program in `worker/programs.ts`, then `npm run deploy`.
 Nothing else changes: the form builds its menus from `GET /api/programs`, so the
 program list, age groups and the adult self-enrol rule all follow from that file.
 
+`npm run deploy` runs `npm run check:programs` first and refuses to deploy if a
+link is malformed, still has its quotes attached, is not https, or **is pasted
+onto two programs** — that last one would silently charge a parent the wrong
+program's price. Run it on its own any time:
+
+```powershell
+npm run check:programs
+```
+
+Two things it cannot tell you, and one hole:
+
+- Whether the link charges the right **amount**, or is even the right program.
+  Only opening it can answer that — hence the checklist below.
+- Whether the host is right. Intuit lets the link's URL be customised, so there
+  is no domain to match on. An unfamiliar host is a **warning, not an error**:
+  guessing wrong and blocking a real link would be worse than the mistake. Once
+  the first genuine link arrives, add its host to `KNOWN_PAY_HOST` in
+  `worker/programs.ts` and the warning goes quiet.
+- **A push to main does not run the check** — Cloudflare's Git integration runs
+  `wrangler deploy` directly, same as `npm run images`. That is why the enrol
+  route re-checks at request time and treats an unusable link exactly like a
+  missing one: the enrolment still saves, the office is still emailed, and the
+  parent sees "we'll follow up" rather than being redirected to whatever was
+  pasted. Check the Worker logs for `payUrl for "…"` if a program that should be
+  payable is not offering payment.
+
+### Prove the first real link before adding the rest
+
+Do this once, with **one** program, before the other four go in. It is the only
+way to catch a link that is valid but points at the wrong thing.
+
+1. Paste the link into that one program's `payUrl`. Leave the others `null`.
+2. `npm run check:programs` — expect `1 of 5 programs can take payment`.
+3. `npm run deploy`, then wait ~30 seconds.
+4. Confirm the catalog agrees, and that only that program flipped:
+
+   ```powershell
+   node -e "fetch('https://trimptennis.lukas-nilsson4321.workers.dev/api/programs').then(r=>r.json()).then(p=>console.table(p.map(x=>({slug:x.slug,payable:x.payable}))))"
+   ```
+
+5. Enrol through the real form for that program, using an address you can read.
+   The dialog should say "Continue to payment" and redirect to QuickBooks.
+6. **On the QuickBooks page, check the program name and the amount, then stop.
+   Do not pay.** A wrong amount here is the whole reason for this checklist.
+7. Confirm the enrolment was captured anyway — it is saved before the handoff, so
+   abandoning payment must still leave a row:
+
+   ```powershell
+   npx wrangler d1 execute trimptennis-db --remote --command "SELECT created_at, program, player_name, payment_status FROM enrollments ORDER BY created_at DESC LIMIT 3"
+   ```
+
+8. Delete the test row, then add the remaining four links and repeat steps 2-4.
+
+Elite Academy is the one to read twice: its link covers **month one only**, and
+the office sets up auto-draft in QuickBooks afterwards. If that link is a
+one-off charge for a full term, it is the wrong link.
+
 ### Add or replace a photo
 
 Put the original in `assets-src/`, add an entry to `JOBS` in
@@ -141,9 +200,15 @@ npx wrangler d1 execute trimptennis-db --remote --command "DELETE FROM sessions 
 ```powershell
 npm run test:account
 npm run test:enroll
+npm run test:payurl
 ```
 
-They run against the **deployed** Worker and create throwaway accounts under
+`test:payurl` is offline — no deploy, no database, no secrets. It checks the
+payment-link rules described above, including that one link pasted onto two
+programs is caught and that an unfamiliar host cannot block payment. 26
+assertions, safe to run any time.
+
+The other two run against the **deployed** Worker and create throwaway accounts under
 `acctest-*@example.com` and `enrtest-*@example.com`, deleting them at the end.
 41 assertions, including that one account cannot read or modify another's
 children, that a parent's enrolment history contains their rows and nobody

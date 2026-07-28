@@ -5,12 +5,14 @@
   "description": "Seahawks Tennis Academy — static site + enrollment API on one Cloudflare Worker",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "npm run check:programs && wrangler deploy",
     "images": "node scripts/optimize-images.mjs",
+    "check:programs": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-programs.mjs",
     "db:schema": "wrangler d1 execute trimptennis-db --remote --file=./schema.sql",
     "db:schema:local": "wrangler d1 execute trimptennis-db --local --file=./schema.sql",
     "test:account": "node scripts/test-account.mjs",
-    "test:enroll": "node scripts/test-enroll-link.mjs"
+    "test:enroll": "node scripts/test-enroll-link.mjs",
+    "test:payurl": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/test-payurl.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260722.1",

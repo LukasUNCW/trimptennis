@@ -24,7 +24,7 @@
 // group) because that is the part QuickBooks does not track.
 
 import type { Env } from './types';
-import { lookupProgram, listPrograms } from './programs';
+import { lookupProgram, listPrograms, payUrlFor } from './programs';
 import { buildAuthUrl, exchangeCodeForTokens, listItems } from './qbo';
 import { notifyEnrollment, notifyInquiry, sendMagicLink } from './email';
 import {
@@ -215,7 +215,9 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
     enrollmentId: row.id,
     // null until Katie has created this program's payment link — the site then
     // shows a "the office will follow up" confirmation instead of redirecting.
-    payUrl: program.payUrl
+    // Also null if the pasted link does not survive checking, which is the same
+    // situation from the parent's side and logs loudly for us. See payUrlFor.
+    payUrl: payUrlFor(program)
   });
 }
 
