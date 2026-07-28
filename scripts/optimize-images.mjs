@@ -24,6 +24,8 @@ const OUT = 'site/images';
 // wide on desktop and near-viewport-width on mobile; the staff cards ~264px.
 const JOBS = [
   { src: 'ball-crew-2025.jpg', out: 'ball-crew-2025',       widths: [800, 1600] },
+  // sits in the Elite page's ~410px aside column, so 440 plus a retina 880
+  { src: 'elite-squad-2025.jpg', out: 'elite-squad-2025',   widths: [440, 880] },
   { src: 'logan-trimp.jpg',    out: 'staff/logan-trimp',    widths: [320, 640] },
   { src: 'mait-dubois.jpg',    out: 'staff/mait-dubois',    widths: [320, 640] },
   { src: 'john-trimp.jpg',     out: 'staff/john-trimp',     widths: [320, 640] },
@@ -61,13 +63,26 @@ for (const job of JOBS) {
     const jpeg = await resized.clone().jpeg({ quality: 80, mozjpeg: true }).toBuffer();
 
     const base = `${job.out}-${width}`;
-    await writeFile(join(OUT, `${base}.webp`), webp);
     await writeFile(join(OUT, `${base}.jpg`), jpeg);
-    outTotal += webp.length + jpeg.length;
+    outTotal += jpeg.length;
 
-    const dims = await sharp(webp).metadata();
-    variants.push({ width: dims.width, height: dims.height, webp: webp.length, jpeg: jpeg.length });
-    console.log(`  ${base}.webp ${kb(webp.length)}   ${base}.jpg ${kb(jpeg.length)}   ${dims.width}x${dims.height}`);
+    // WebP is not always smaller. Photos full of fine high-frequency detail —
+    // chain-link fencing, foliage, gravel — can encode larger than mozjpeg, and
+    // a <picture> would then serve the heavier file simply because it is first.
+    // Only keep the WebP when it actually wins.
+    const webpWins = webp.length < jpeg.length;
+    if (webpWins) {
+      await writeFile(join(OUT, `${base}.webp`), webp);
+      outTotal += webp.length;
+    }
+
+    const dims = await sharp(jpeg).metadata();
+    variants.push({ width: dims.width, height: dims.height, webp: webpWins ? webp.length : null, jpeg: jpeg.length });
+    console.log(
+      `  ${base}.jpg ${kb(jpeg.length)}   ` +
+      (webpWins ? `${base}.webp ${kb(webp.length)}   ` : `webp skipped (${kb(webp.length)} > jpeg)   `) +
+      `${dims.width}x${dims.height}`
+    );
   }
 
   manifest.push({ out: job.out, variants });
@@ -77,5 +92,7 @@ console.log(`\noriginals: ${kb(srcTotal)}   generated (all variants): ${kb(outTo
 console.log('largest single-variant page cost:');
 for (const m of manifest) {
   const biggest = m.variants[m.variants.length - 1];
-  console.log(`  ${m.out.padEnd(22)} ${biggest.width}x${biggest.height}  webp ${kb(biggest.webp)}`);
+  const bytes = biggest.webp ?? biggest.jpeg;
+  const fmt = biggest.webp ? "webp" : "jpg ";
+  console.log(`  ${m.out.padEnd(22)} ${biggest.width}x${biggest.height}  ${fmt} ${kb(bytes)}`);
 }

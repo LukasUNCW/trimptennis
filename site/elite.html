@@ -87,9 +87,18 @@
     </div>
 
     <aside class="prog-facts">
-      <div class="photo-ph ph-navy">
-        <span>Photo — Elite squad<br>training session</span>
-      </div>
+      <!-- JPEG only, no <picture>: WebP encoded larger than mozjpeg for this
+           photo (all that chain-link fence), so offering it would serve the
+           heavier file. See scripts/optimize-images.mjs. -->
+      <figure class="prog-photo">
+        <img src="images/elite-squad-2025-440.jpg"
+             srcset="images/elite-squad-2025-440.jpg 440w, images/elite-squad-2025-880.jpg 880w"
+             sizes="(max-width:980px) calc(100vw - 100px), 410px"
+             width="880" height="1173" loading="lazy"
+             alt="Head pro Logan Trimp with four academy players wearing medals, holding the USTA North Carolina 2025 Junior Team Tennis State Champion banner for the 14 Advanced division.">
+        <figcaption>2025 USTA North Carolina Junior Team Tennis — 14 Advanced
+          state champions, with head pro Logan Trimp.</figcaption>
+      </figure>
       <dl class="fact-list">
         <div><dt>When</dt><dd>Monday – Thursday<br>5:00 – 7:00 PM</dd></div>
         <div><dt>Season</dt><dd>Year round, month to month</dd></div>
