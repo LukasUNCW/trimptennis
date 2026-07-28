@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in — Seahawks Tennis Academy</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800;900&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="utility">
+  <div class="wrap">
+    <div class="left">
+      <a href="tel:7044589573">704-458-9573</a>
+      <span class="hide-sm"><a href="mailto:info@seahawkstennisacademy.com">info@seahawkstennisacademy.com</a></span>
+    </div>
+    <div class="right" id="authNav"></div>
+  </div>
+</div>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/">
+      <img class="brand-mark" src="images/uncw-logo.svg" width="44" height="44" alt="">
+      <span class="brand-name"><b>Seahawks Tennis Academy</b><span>Wilmington · North Carolina</span></span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="/#programs">Programs</a></li>
+      <li><a href="/#coaches">Coaches</a></li>
+      <li><a href="#">Schedule</a></li>
+      <li><a href="/contact">Contact</a></li>
+    </ul>
+    <div class="nav-cta">
+      <a class="btn btn-gold" href="/#programs">Register now</a>
+    </div>
+  </div>
+</header>
+
+<section class="auth-page">
+  <div class="wrap">
+    <div class="auth-box">
+      <span class="eyebrow">Parents &amp; players</span>
+      <h1>Sign in</h1>
+
+      <form id="loginForm" novalidate>
+        <p class="auth-lede">Enter your email and we'll send you a sign-in link.
+          There's no password to remember.</p>
+
+        <div class="enroll-msg" id="lgErr" role="alert" hidden></div>
+
+        <div class="field">
+          <label for="lg-email">Email <span class="req">*</span></label>
+          <input id="lg-email" name="email" type="email" maxlength="200"
+                 autocomplete="email" autofocus placeholder="you@example.com" required>
+        </div>
+
+        <div class="field">
+          <div id="lg-turnstile"></div>
+        </div>
+
+        <button type="submit" class="btn btn-teal" id="lg-submit">Email me a link</button>
+
+        <p class="auth-note">New here? Signing in for the first time creates your
+          account — you don't need to register separately.</p>
+      </form>
+
+      <div class="auth-sent" id="lgSent" hidden>
+        <div class="tick" aria-hidden="true">&check;</div>
+        <h2>Check your email</h2>
+        <p>If that address is valid, a sign-in link is on its way to
+          <b id="lgSentTo"></b>. It works once and expires in 15 minutes.</p>
+        <p class="auth-note">Nothing arrived? Check spam, or
+          <a href="/login">try again</a>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-bottom" style="border:none;padding-top:0">
+      <span>© 2026 Seahawks Tennis Academy. All rights reserved.</span>
+      <span><a href="/contact" style="color:#8FA1B8">Contact us</a></span>
+    </div>
+  </div>
+</footer>
+
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+<script src="auth-nav.js" defer></script>
+<script>
+(() => {
+  const TURNSTILE_SITE_KEY = '0x4AAAAAAD_U3gZ8R47QurWL';
+
+  const form     = document.getElementById('loginForm');
+  const sent     = document.getElementById('lgSent');
+  const errBox   = document.getElementById('lgErr');
+  const submitBt = document.getElementById('lg-submit');
+  const emailIn  = document.getElementById('lg-email');
+  let widgetId = null;
+
+  const showErr = (m) => { errBox.textContent = m; errBox.hidden = false; };
+
+  // Arriving from a dead link — expired, already used, or never valid. The page
+  // does not say which, because that would leak whether a token was real.
+  if (new URLSearchParams(location.search).get('e') === 'expired') {
+    showErr('That sign-in link has expired or was already used. Request a new one below.');
+  }
+
+  const turnstileReady = (timeoutMs = 8000) => {
+    if (window.turnstile) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const started = Date.now();
+      const t = setInterval(() => {
+        if (window.turnstile) { clearInterval(t); resolve(true); }
+        else if (Date.now() - started > timeoutMs) { clearInterval(t); resolve(false); }
+      }, 100);
+    });
+  };
+
+  (async () => {
+    submitBt.disabled = true;
+    if (!(await turnstileReady())) {
+      showErr('The verification check could not load — please refresh and try again.');
+      return;
+    }
+    widgetId = window.turnstile.render('#lg-turnstile', { sitekey: TURNSTILE_SITE_KEY });
+    submitBt.disabled = false;
+  })();
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errBox.hidden = true;
+
+    const email = emailIn.value.trim();
+    if (!email.includes('@')) return showErr('Please enter a valid email address.');
+
+    if (!window.turnstile || widgetId === null) {
+      return showErr('The verification check could not load — please refresh and try again.');
+    }
+    const turnstileToken = window.turnstile.getResponse(widgetId);
+    if (!turnstileToken) return showErr('Please complete the verification check.');
+
+    submitBt.disabled = true;
+    submitBt.textContent = 'Sending…';
+
+    try {
+      const res = await fetch('/api/auth/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, turnstileToken })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Something went wrong.');
+    } catch (err) {
+      submitBt.disabled = false;
+      submitBt.textContent = 'Email me a link';
+      window.turnstile.reset(widgetId);
+      return showErr(err.message === 'Failed to fetch'
+        ? 'Network problem — please check your connection and try again.'
+        : err.message);
+    }
+
+    document.getElementById('lgSentTo').textContent = email;
+    form.hidden = true;
+    sent.hidden = false;
+  });
+})();
+</script>
+
+</body>
+</html>

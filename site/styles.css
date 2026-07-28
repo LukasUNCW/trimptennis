@@ -287,3 +287,21 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
   .contact-grid{grid-template-columns:1fr;gap:40px}
   .contact{padding:40px 0 64px}
 }
+
+/* ── sign-in page ───────────────────────────────────────────────────────── */
+.auth-page{background:var(--sand);min-height:64vh;display:grid;place-items:center;padding:56px 0 72px}
+.auth-box{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:36px 38px 34px;width:min(460px,100%);margin:0 auto;box-shadow:0 14px 40px rgba(10,34,64,.07)}
+.auth-box .eyebrow{color:var(--teal);display:block;margin-bottom:10px}
+.auth-box h1{font-size:28px;font-weight:900;letter-spacing:-.02em;color:var(--navy);margin-bottom:16px}
+.auth-lede{font-size:15px;color:var(--muted);margin-bottom:22px;line-height:1.55}
+.auth-box button[type=submit]{width:100%;justify-content:center}
+.auth-note{font-size:12.5px;color:var(--muted);margin-top:16px;line-height:1.5}
+.auth-note a{color:var(--teal);font-weight:700}
+.auth-sent{text-align:center}
+.auth-sent .tick{width:52px;height:52px;border-radius:50%;background:var(--teal);color:#fff;display:grid;place-items:center;font-size:25px;font-weight:700;margin:4px auto 16px}
+.auth-sent h2{font-size:21px;font-weight:800;color:var(--navy);margin-bottom:10px}
+.auth-sent p{font-size:15px;color:var(--muted);line-height:1.55}
+.auth-sent b{color:var(--navy);word-break:break-word}
+/* the utility bar greeting sits alongside its links */
+.utility .right span{color:#B9C6D9}
+@media (max-width:560px){.auth-box{padding:28px 22px 26px}}

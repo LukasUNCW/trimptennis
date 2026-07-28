@@ -3,6 +3,10 @@
 //   1. Static site — requests matching files in ./site are served automatically
 //      by the assets layer and never reach this code.
 //   2. API routes — everything else lands here:
+//        POST /api/auth/request   email a magic sign-in link
+//        GET  /auth/callback      redeem the link, open a session
+//        POST /api/auth/logout    end the session
+//        GET  /api/me             the signed-in account, or 401
 //        GET  /api/programs  catalog the enrollment form builds its menus from
 //        POST /api/enroll    enrollment form → D1 + email, returns the
 //                            QuickBooks payment link to redirect the parent to
@@ -19,7 +23,11 @@
 import type { Env } from './types';
 import { lookupProgram, listPrograms } from './programs';
 import { buildAuthUrl, exchangeCodeForTokens, listItems } from './qbo';
-import { notifyEnrollment, notifyInquiry } from './email';
+import { notifyEnrollment, notifyInquiry, sendMagicLink } from './email';
+import {
+  normaliseEmail, isRateLimited, createLoginToken, redeemLoginToken,
+  createSession, getSessionUser, destroySession, sessionCookie, clearedCookie
+} from './auth';
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -39,6 +47,31 @@ export default {
       if (request.method === 'POST' && pathname === '/api/inquiry') {
         return await handleInquiry(request, env, ctx);
       }
+      // ── auth (docs/ACCOUNTS.md) ──
+      if (request.method === 'POST' && pathname === '/api/auth/request') {
+        return await handleAuthRequest(request, env, ctx);
+      }
+      if (request.method === 'GET' && pathname === '/auth/callback') {
+        return await handleAuthCallback(request, env, url);
+      }
+      if (request.method === 'POST' && pathname === '/api/auth/logout') {
+        await destroySession(env, request);
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: {
+            'Content-Type': 'application/json',
+            'Set-Cookie': clearedCookie(),
+            'Cache-Control': 'no-store'
+          }
+        });
+      }
+      if (request.method === 'GET' && pathname === '/api/me') {
+        const user = await getSessionUser(env, request);
+        if (!user) return json({ error: 'Not signed in' }, 401);
+        return new Response(JSON.stringify(user), {
+          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
+        });
+      }
+
       if (request.method === 'GET' && pathname === '/qbo/connect') {
         requireAdmin(url, env);
         return Response.redirect(buildAuthUrl(env, url.origin), 302);
@@ -134,6 +167,52 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
     // null until Katie has created this program's payment link — the site then
     // shows a "the office will follow up" confirmation instead of redirecting.
     payUrl: program.payUrl
+  });
+}
+
+// Emails a sign-in link. The response is identical no matter what happens —
+// unknown address, rate limited, delivery failure — because an anonymous caller
+// must not be able to use this endpoint to discover who has an account.
+async function handleAuthRequest(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  let body: any;
+  try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
+
+  const human = await verifyTurnstile(env, body.turnstileToken, request.headers.get('CF-Connecting-IP'));
+  if (!human) return json({ error: 'Verification failed — please retry.' }, 403);
+
+  const email = normaliseEmail(body.email);
+  // A malformed address is worth reporting: it is the visitor's own typo, not a
+  // fact about someone else's account.
+  if (!email) return json({ error: 'Please enter a valid email address.' }, 400);
+
+  if (!(await isRateLimited(env, email))) {
+    const token = await createLoginToken(env, email);
+    const link = `${new URL(request.url).origin}/auth/callback?token=${token}`;
+    ctx.waitUntil(sendMagicLink(env, email, link).then(() => undefined));
+  }
+
+  return json({ ok: true });
+}
+
+// Redeems the link and opens a session. Referrer-Policy stops the token leaking
+// to third parties through a Referer header on the redirect.
+async function handleAuthCallback(request: Request, env: Env, url: URL): Promise<Response> {
+  const accountId = await redeemLoginToken(env, url.searchParams.get('token'));
+  const headers: Record<string, string> = {
+    'Referrer-Policy': 'no-referrer',
+    'Cache-Control': 'no-store'
+  };
+
+  if (!accountId) {
+    // Expired, already used, or never existed — the visitor is told the same
+    // thing either way.
+    return new Response(null, { status: 302, headers: { ...headers, Location: '/login?e=expired' } });
+  }
+
+  const sid = await createSession(env, accountId, request.headers.get('User-Agent'));
+  return new Response(null, {
+    status: 302,
+    headers: { ...headers, Location: '/?signedin=1', 'Set-Cookie': sessionCookie(sid) }
   });
 }
 

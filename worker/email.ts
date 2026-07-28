@@ -5,7 +5,7 @@
 
 import type { Env } from './types';
 
-async function send(env: Env, subject: string, html: string): Promise<void> {
+async function sendTo(env: Env, to: string, subject: string, html: string): Promise<boolean> {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -14,12 +14,49 @@ async function send(env: Env, subject: string, html: string): Promise<void> {
     },
     body: JSON.stringify({
       from: `${env.SITE_NAME} <${env.FROM_EMAIL}>`,
-      to: [env.NOTIFY_EMAIL],
+      to: [to],
       subject,
       html
     })
   });
-  if (!res.ok) console.error('Resend failed:', res.status, await res.text());
+  if (!res.ok) {
+    console.error('Resend failed:', res.status, await res.text());
+    return false;
+  }
+  return true;
+}
+
+/** Notifications to the academy office. */
+const send = (env: Env, subject: string, html: string): Promise<boolean> =>
+  sendTo(env, env.NOTIFY_EMAIL, subject, html);
+
+/**
+ * Sign-in link — the only mail we send to a visitor rather than to the office.
+ * Returns false when delivery failed, which the caller must NOT surface: whether
+ * an address exists or accepted mail is not something an anonymous visitor
+ * should be able to probe.
+ *
+ * Until the academy's domain is verified in Resend, the shared dev sender can
+ * only deliver to the Resend account owner, so links to anyone else silently
+ * fail. See docs/ACCOUNTS.md.
+ */
+export function sendMagicLink(env: Env, to: string, url: string): Promise<boolean> {
+  return sendTo(env, to, `Sign in to ${env.SITE_NAME}`, `
+    <h2 style="margin:0 0 14px;font-family:sans-serif;color:#0A2240">Sign in 🎾</h2>
+    <p style="font-family:sans-serif;font-size:15px;color:#15263D;margin:0 0 22px">
+      Click the button below to sign in to your ${esc(env.SITE_NAME)} account.
+      The link works once and expires in 15 minutes.</p>
+    <p style="margin:0 0 24px">
+      <a href="${esc(url)}" style="display:inline-block;background:#077A78;color:#fff;
+         font-family:sans-serif;font-weight:700;font-size:15px;text-decoration:none;
+         padding:13px 26px;border-radius:999px">Sign in</a></p>
+    <p style="font-family:sans-serif;font-size:13px;color:#666;margin:0 0 6px">
+      If the button does not work, paste this into your browser:</p>
+    <p style="font-family:monospace;font-size:12px;color:#666;word-break:break-all;margin:0 0 22px">
+      ${esc(url)}</p>
+    <p style="font-family:sans-serif;font-size:13px;color:#666;margin:0">
+      Didn't ask to sign in? You can ignore this email — nobody can get into your
+      account without this link.</p>`);
 }
 
 const esc = (s: unknown) =>

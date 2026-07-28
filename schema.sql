@@ -47,6 +47,58 @@ CREATE TABLE IF NOT EXISTS inquiries (
   contact_preference TEXT           -- 'email' | 'phone'
 );
 
+-- ── Parent accounts (see docs/ACCOUNTS.md) ──────────────────────────────
+-- Sign-in is by emailed magic link, so there is no password column anywhere.
+
+CREATE TABLE IF NOT EXISTS accounts (
+  id TEXT PRIMARY KEY,              -- crypto.randomUUID()
+  email TEXT NOT NULL UNIQUE,       -- always stored lowercased and trimmed
+  first_name TEXT,
+  last_name TEXT,
+  phone TEXT,
+  address1 TEXT,
+  address2 TEXT,
+  city TEXT,
+  state TEXT,
+  zip TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_login_at TEXT
+);
+
+-- birth_year rather than a full date: enough to derive the age group, stays
+-- correct as the child ages up, and is less data about a minor than we need.
+CREATE TABLE IF NOT EXISTS children (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL REFERENCES accounts(id),
+  first_name TEXT NOT NULL,
+  last_name TEXT,
+  birth_year INTEGER,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_children_account ON children (account_id);
+
+-- Only the SHA-256 of the emailed token is stored, so a copy of this table
+-- cannot be used to sign in as anyone. Rows are deleted on redemption.
+CREATE TABLE IF NOT EXISTS login_tokens (
+  token_hash TEXT PRIMARY KEY,
+  email TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,      -- epoch ms
+  created_at INTEGER NOT NULL       -- epoch ms, used for rate limiting
+);
+CREATE INDEX IF NOT EXISTS idx_login_tokens_email ON login_tokens (email, created_at);
+
+-- Opaque session ids rather than signed tokens: revocable, no signing secret
+-- to manage, and this table is the audit trail of who signed in when.
+CREATE TABLE IF NOT EXISTS sessions (
+  id TEXT PRIMARY KEY,              -- the value held in the cookie
+  account_id TEXT NOT NULL REFERENCES accounts(id),
+  created_at INTEGER NOT NULL,      -- epoch ms
+  expires_at INTEGER NOT NULL,      -- epoch ms
+  user_agent TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_account ON sessions (account_id);
+
 -- QuickBooks OAuth tokens. Single row (id = 1), updated on every refresh.
 -- Lives in D1 rather than Worker secrets because Intuit ROTATES the refresh
 -- token and secrets aren't writable at runtime.
