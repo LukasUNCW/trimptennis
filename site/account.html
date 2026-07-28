@@ -156,6 +156,25 @@
       </details>
     </div>
 
+    <!-- ── your enrollments ───────────────────────────────────────────────
+         Full width under the two columns: a row is wide (program, player,
+         date, status) and reads badly squeezed into half the grid. -->
+    <div class="ac-card ac-wide">
+      <div class="ac-head">
+        <h2>Your enrollments</h2>
+        <span class="ac-status" id="histStatus" role="status"></span>
+      </div>
+      <p class="ac-lede">Everything signed up for on this account. Receipts and
+        invoices are issued by QuickBooks and emailed to you — they are not
+        shown here.</p>
+
+      <div class="enroll-msg" id="histErr" role="alert" hidden></div>
+
+      <ul class="enrol-list" id="enrolList">
+        <li class="child-empty">Loading…</li>
+      </ul>
+    </div>
+
   </div>
 </section>
 

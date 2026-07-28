@@ -2,12 +2,13 @@
 //
 // Exercises the account API against the DEPLOYED Worker, including the checks
 // that matter most: that one account cannot read or modify another account's
-// children, that the sign-in email cannot be changed through the profile
-// endpoint, and that /account redirects when signed out.
+// children or enrolments, that the sign-in email cannot be changed through the
+// profile endpoint, and that /account redirects when signed out.
 //
-// It creates two throwaway accounts (acctest-*@example.com) and deletes them at
-// the end. Sign-in tokens are inserted straight into D1 because Turnstile
-// blocks scripted requests to /api/auth/request.
+// It creates two throwaway accounts (acctest-*@example.com), plus enrolment rows
+// against those addresses, and deletes them at the end. Sign-in tokens and
+// enrolments are inserted straight into D1 because Turnstile blocks scripted
+// requests to /api/auth/request and /api/enroll.
 //
 // NOTE: this runs against production data. It only ever touches rows whose
 // email matches acctest-%@example.com.
@@ -136,8 +137,55 @@ console.log('\n— delete own child —');
 me = await req(`/api/children/${childId}`, A, { method: 'DELETE' }).then((r) => r.json());
 ok('own child deleted', (me.children ?? []).length === 0);
 
+console.log('\n— enrollment history (phase 4) —');
+// Written straight into D1: Turnstile blocks a scripted POST to /api/enroll, and
+// created_at is set explicitly so the ordering assertion is not at the mercy of
+// two inserts landing in the same second.
+const idA = (await req('/api/me', A).then((r) => r.json())).account.id;
+const idB = (await req('/api/me', Bc).then((r) => r.json())).account.id;
+
+d1(`INSERT INTO enrollments (id,created_at,parent_email,player_name,age_group,program,payment_status,account_id)
+      VALUES ('${randomBytes(8).toString('hex')}','2026-01-05 10:00:00','${A_EMAIL}','Linked Kid','10-18','Elite Academy','paid','${idA}');
+    INSERT INTO enrollments (id,created_at,parent_email,player_name,age_group,program,payment_status,account_id)
+      VALUES ('${randomBytes(8).toString('hex')}','2026-03-09 10:00:00','${A_EMAIL.toUpperCase()}','Guest Kid','6-12','Summer Morning Camp','awaiting_payment',NULL);
+    INSERT INTO enrollments (id,created_at,parent_email,player_name,age_group,program,payment_status,account_id)
+      VALUES ('${randomBytes(8).toString('hex')}','2026-02-02 10:00:00','${B_EMAIL}','Bees Kid','9-16',"Shredder's",'paid','${idB}');
+    INSERT INTO enrollments (id,created_at,parent_email,player_name,age_group,program,payment_status,account_id)
+      VALUES ('${randomBytes(8).toString('hex')}','2026-04-04 10:00:00','acctest-stranger@example.com','Nobodys Kid','6-12','Elite Academy','paid',NULL)`);
+
+ok('GET /api/enrollments without cookie is 401', (await fetch(`${B}/api/enrollments`)).status === 401);
+
+const histRes = await req('/api/enrollments', A);
+ok('history sets Cache-Control: no-store',
+   (histRes.headers.get('cache-control') ?? '').includes('no-store'),
+   histRes.headers.get('cache-control'));
+
+const histA = (await histRes.json()).enrollments ?? [];
+ok('A sees both its own rows — linked and guest', histA.length === 2, JSON.stringify(histA));
+// The guest row carries no account_id, so it can only have been matched on the
+// email — and it was stored uppercased, which is what lower() is there for.
+ok('a guest enrolment is matched by email, case-insensitively',
+   histA.some((r) => r.player_name === 'Guest Kid'), JSON.stringify(histA.map((r) => r.player_name)));
+ok('newest first', histA[0]?.program === 'Summer Morning Camp' && histA[1]?.program === 'Elite Academy',
+   histA.map((r) => r.program).join(' | '));
+ok('a row for a different email is not included',
+   !histA.some((r) => r.player_name === 'Nobodys Kid'), JSON.stringify(histA.map((r) => r.player_name)));
+ok('the fields the page needs are present',
+   histA[0]?.age_group === '6-12' && histA[0]?.payment_status === 'awaiting_payment' && !!histA[0]?.created_at,
+   JSON.stringify(histA[0]));
+// Nothing here would be a leak — they are this parent's own details — but the
+// row stays narrow so a future change to the matching rule has less to expose.
+ok('nothing beyond that is returned',
+   Object.keys(histA[0] ?? {}).sort().join(',') === 'age_group,created_at,payment_status,player_name,program',
+   Object.keys(histA[0] ?? {}).join(','));
+
+const histB = (await req('/api/enrollments', Bc).then((r) => r.json())).enrollments ?? [];
+ok("account B sees only its own enrolment", histB.length === 1 && histB[0].player_name === 'Bees Kid',
+   JSON.stringify(histB));
+
 console.log('\n— cleanup —');
-d1(`DELETE FROM children WHERE account_id IN (SELECT id FROM accounts WHERE email LIKE 'acctest-%@example.com');
+d1(`DELETE FROM enrollments WHERE lower(parent_email) LIKE 'acctest-%@example.com';
+    DELETE FROM children WHERE account_id IN (SELECT id FROM accounts WHERE email LIKE 'acctest-%@example.com');
     DELETE FROM sessions WHERE account_id IN (SELECT id FROM accounts WHERE email LIKE 'acctest-%@example.com');
     DELETE FROM accounts WHERE email LIKE 'acctest-%@example.com';
     DELETE FROM login_tokens WHERE email LIKE 'acctest-%@example.com'`);

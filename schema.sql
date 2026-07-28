@@ -35,6 +35,12 @@ CREATE INDEX IF NOT EXISTS idx_enrollments_account ON enrollments (account_id);
 CREATE INDEX IF NOT EXISTS idx_enrollments_payment ON enrollments (payment_status);
 CREATE INDEX IF NOT EXISTS idx_enrollments_program ON enrollments (program);
 
+-- The account page reads a parent's history by account_id OR by the address
+-- typed on the form, so guest enrolments made before signing up still show. The
+-- expression has to be indexed the same way it is queried — an index on
+-- parent_email alone would not be used by lower(parent_email) = ?.
+CREATE INDEX IF NOT EXISTS idx_enrollments_parent_email ON enrollments (lower(parent_email));
+
 -- Non-payment form submissions: free trial requests, contact form.
 CREATE TABLE IF NOT EXISTS inquiries (
   id TEXT PRIMARY KEY,              -- crypto.randomUUID()

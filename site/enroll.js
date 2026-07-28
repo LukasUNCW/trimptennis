@@ -333,6 +333,13 @@
         : err.message);
     }
 
+    // The account page shows an enrollment list. Without this it keeps showing
+    // the list from page load, so a parent who enrols from /account sees "you're
+    // on the list" above a list the new enrollment is missing from. Announced
+    // rather than called directly because this dialog is on every page, most of
+    // which have nothing listening.
+    document.dispatchEvent(new CustomEvent('sta:enrolled'));
+
     // Enrollment is saved either way. payUrl is null until the office has
     // created that program's QuickBooks payment link.
     if (data.payUrl) {

@@ -42,7 +42,7 @@ What that means in practice:
 | Contact form | Live, writes to D1 and emails the office |
 | Turnstile | **Real widget**, both forms protected |
 | Email (Resend) | Working, but see the domain caveat below |
-| Parent accounts | Live — magic-link sign-in, profile, children, linked enrolments |
+| Parent accounts | Live — magic-link sign-in, profile, children, linked enrolments, enrolment history |
 | **Taking payment** | **Blocked** — no payment links exist yet |
 | Schedule page | Not built — needs a decision, see below |
 | QuickBooks read API | Not connected — `QBO_CLIENT_ID`/`SECRET` are still `TODO` |
@@ -141,9 +141,10 @@ npm run test:enroll
 
 They run against the **deployed** Worker and create throwaway accounts under
 `acctest-*@example.com` and `enrtest-*@example.com`, deleting them at the end.
-32 assertions, including that one account cannot read or modify another's
-children, and that removing a player detaches its enrolments instead of
-deleting them.
+41 assertions, including that one account cannot read or modify another's
+children, that a parent's enrolment history contains their rows and nobody
+else's, and that removing a player detaches its enrolments instead of deleting
+them.
 
 ## Reference
 
@@ -178,6 +179,7 @@ host, so the forms keep working at domain cutover.
 | `POST /api/auth/logout` | End the session |
 | `GET`/`PATCH /api/me` | The signed-in account + children |
 | `POST`/`PATCH`/`DELETE /api/children[/:id]` | Manage saved players |
+| `GET /api/enrollments` | The signed-in parent's own enrolment history |
 | `GET /qbo/connect`, `/qbo/callback`, `/qbo/items` | One-time QuickBooks OAuth, `?key=ADMIN_KEY` |
 
 All forms are Turnstile-gated. `/account` is gated server-side, which needs

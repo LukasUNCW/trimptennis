@@ -1,11 +1,12 @@
 # Parent accounts — scope
 
-Status: **phases 1-3 built and deployed.** Written 2026-07-27, updated 2026-07-28.
+Status: **all four phases built and deployed.** Written 2026-07-27, updated
+2026-07-28.
 
 - Phase 1 (magic-link sign-in) — done. `npm run test:account`
 - Phase 2 (profile + children at /account) — done. `npm run test:account`
 - Phase 3 (enrolment linked to account + child) — done. `npm run test:enroll`
-- Phase 4 (enrolment history on the account page) — not started
+- Phase 4 (enrolment history on the account page) — done. `npm run test:account`
 
 Still outstanding: changing the sign-in email needs a confirmation link to the
 new address before it can be offered, and the sending domain must be verified in
@@ -124,6 +125,30 @@ Signed in:
 - `GET   /api/me` — account + children
 - `PATCH /api/me`
 - `POST /api/children`, `PATCH /api/children/:id`, `DELETE /api/children/:id`
+- `GET   /api/enrollments` — this parent's own enrolment history (read-only)
+
+### Why enrolment history is its own endpoint
+
+Every mutation above returns `loadMe()`, and none of them can change the
+enrolment list, so folding it into `/api/me` would buy an extra query on each
+of those writes for nothing. It is also the least important thing on the page:
+on its own request, a failure shows one message in that card instead of taking
+the profile and players down with it.
+
+### Which enrolments count as yours
+
+Matched on `account_id` **or** the address typed on the enrolment form
+(`lower(parent_email) = accounts.email`).
+
+The second arm exists because guest enrolment is a supported path, not a
+fallback. Without it, a parent who enrolled before creating an account is shown
+"nothing here yet", which reads as data loss. It discloses nothing extra:
+holding an account means having received a magic link at that address, which is
+the same proof of possession the match relies on.
+
+The rows are matched at read time rather than having `account_id` stamped onto
+them at sign-in. Claiming them would be tidier to query, but it writes a guess
+permanently into the roster, and a wrong guess could not be undone.
 
 ## Phases
 
@@ -133,22 +158,24 @@ Signed in:
 2. **Account page** — profile form and add/edit/remove children.
 3. **Enrollment prefill** — the enrol dialog offers your saved children, and
    writes `account_id`/`child_id` onto the row. This is the actual payoff.
-4. **Later** — the parent's own enrolment history on the account page.
+4. **Enrolment history** — a read-only list on the account page: programme,
+   player, date, payment status. Deliberately not invoices or receipts, which
+   QuickBooks issues and emails.
 
 Roughly: phase 1 is comparable in size to the enrollment form; phase 2 similar;
 phase 3 is small. Not a single sitting, but not months either.
 
 ## Hard dependency: email must actually work
 
-Magic links are email. Two things gate this:
+Magic links are email. `RESEND_API_KEY` is set and email sends, so what is left
+is the domain:
 
-1. **`RESEND_API_KEY` is still `TODO`.** No email, no sign-in.
-2. **The domain must be verified in Resend.** Until then Resend's shared sender
-   can only deliver to the Resend account owner — so magic links would reach
-   Lukas and nobody else. Verifying `seahawkstennisacademy.com` needs DNS
-   records added, which means the academy's domain access.
+**The domain must be verified in Resend.** Until then Resend's shared sender can
+only deliver to the Resend account owner — so magic links reach Lukas and nobody
+else. Verifying `seahawkstennisacademy.com` needs DNS records added, which means
+the academy's domain access.
 
-Point 2 is the real blocker and it is not a coding task. **Auth cannot ship to
+That is not a coding task, and it is the whole blocker. **Auth cannot ship to
 real parents before the sending domain is verified.**
 
 ## Things deliberately not in this plan

@@ -9,6 +9,7 @@
 //        GET  /api/me             the signed-in account + children, or 401
 //        PATCH /api/me            update the profile (never the email)
 //        POST/PATCH/DELETE /api/children[/:id]   manage children
+//        GET  /api/enrollments    this parent's own enrollment history
 //        GET  /api/programs  catalog the enrollment form builds its menus from
 //        POST /api/enroll    enrollment form → D1 + email, returns the
 //                            QuickBooks payment link to redirect the parent to
@@ -78,6 +79,9 @@ export default {
       const childRoute = pathname.match(/^\/api\/children\/([0-9a-f-]{36})$/);
       if (childRoute && (request.method === 'PATCH' || request.method === 'DELETE')) {
         return await handleChildMutation(request, env, childRoute[1]);
+      }
+      if (request.method === 'GET' && pathname === '/api/enrollments') {
+        return await handleGetEnrollments(request, env);
       }
 
       // The account page is a static asset, so the session is checked here
@@ -388,6 +392,48 @@ async function handleChildMutation(request: Request, env: Env, childId: string):
     .run();
 
   return noStore((await loadMe(env, request))!);
+}
+
+// ── enrollment history (docs/ACCOUNTS.md phase 4) ────────────────────────
+
+// A parent's own enrollments. Read-only, and deliberately NOT folded into
+// /api/me: every profile and child mutation returns loadMe(), and not one of
+// them can change this list, so putting it there would buy a third query on
+// each of those writes for nothing.
+//
+// Matched on the account id OR the address typed on the form. That second arm
+// is what makes guest enrollment visible: enrolling without an account is a
+// supported path rather than a fallback, so a parent who did that and signed up
+// afterwards must not be told they have no enrollments. It discloses nothing
+// extra — holding an account at all means having received a magic link at that
+// address, which is the same proof of possession the email arm relies on.
+//
+// The rows are read, not rewritten. Stamping account_id onto matched guest rows
+// would be tidier to query but bakes the guess into the roster permanently, and
+// a wrong guess would be unrecoverable; matching at read time is reversible.
+//
+// Only what the account page shows is selected. parent_email and phone are the
+// parent's own details and would be harmless, but the narrower the row the less
+// there is to leak if this ever grows a wider matching rule.
+async function handleGetEnrollments(request: Request, env: Env): Promise<Response> {
+  const user = await getSessionUser(env, request);
+  if (!user) return json({ error: 'Not signed in' }, 401);
+
+  // created_at has one-second resolution, so enrolling two children in quick
+  // succession ties. rowid breaks it by insertion order, which keeps the list
+  // stable across reloads instead of shuffling.
+  const rows = await env.DB
+    .prepare(
+      `SELECT created_at, program, player_name, age_group, payment_status
+       FROM enrollments
+       WHERE account_id = ?1 OR lower(parent_email) = ?2
+       ORDER BY created_at DESC, rowid DESC
+       LIMIT 50`
+    )
+    .bind(user.account_id, user.email)
+    .all<Record<string, unknown>>();
+
+  return noStore({ enrollments: rows.results });
 }
 
 // Emails a sign-in link. The response is identical no matter what happens —

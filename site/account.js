@@ -1,5 +1,5 @@
 // site/account.js
-// The account page: profile form and children.
+// The account page: profile form, children, and enrollment history.
 //
 // The Worker redirects signed-out visitors before this page is ever served, so
 // this script assumes a session. It still handles a 401 — a session can expire
@@ -12,6 +12,7 @@
   const childForm   = $('childForm');
   const childList   = $('childList');
   const childAdd    = $('childAdd');
+  const enrolList   = $('enrolList');
 
   const PROFILE_FIELDS = {
     first_name: 'ac-first', last_name: 'ac-last', phone: 'ac-phone',
@@ -103,9 +104,92 @@
     renderChildren(me.children ?? []);
   }
 
+  // ── enrollment history ─────────────────────────────────────────────────
+
+  // What a parent is shown for each payment_status. The stored values are the
+  // office's vocabulary, not a parent's: "abandoned" is a book-keeping word for
+  // an enrollment that was never paid for, and reads as an accusation on
+  // someone's own account page.
+  const PAY_LABEL = {
+    awaiting_payment: ['Awaiting payment', 'pending'],
+    paid: ['Paid', 'paid'],
+    abandoned: ['Not completed', 'void']
+  };
+
+  /** Unknown status: shown as-is rather than hidden, so nothing goes silent. */
+  const prettyStatus = (s) => {
+    const t = String(s ?? '').replace(/_/g, ' ').trim();
+    return t ? t[0].toUpperCase() + t.slice(1) : 'Status unknown';
+  };
+
+  // D1 writes created_at as datetime('now') — "2026-07-28 13:24:11", UTC with
+  // nothing to say so. Browsers read that shape as LOCAL time, which moves the
+  // date across midnight for anyone west of UTC, so the zone is made explicit
+  // before formatting.
+  function fmtDate(value) {
+    const raw = String(value ?? '').trim();
+    if (!raw) return '';
+    const iso = raw.replace(' ', 'T');
+    const d = new Date(/[Zz]|[+-]\d\d:?\d\d$/.test(iso) ? iso : iso + 'Z');
+    return isNaN(d.getTime())
+      ? raw
+      : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  function renderEnrollments(rows) {
+    if (!rows.length) {
+      enrolList.innerHTML =
+        '<li class="child-empty">Nothing here yet. <a href="/#programs">Browse the programs</a> to sign a player up.</li>';
+      return;
+    }
+    enrolList.innerHTML = rows.map((r) => {
+      const [label, mod] = PAY_LABEL[r.payment_status] ?? [prettyStatus(r.payment_status), ''];
+      // player_name is only ever missing on a row typed in by hand, but the
+      // list should not render a nameless bullet if that happens.
+      const who = r.player_name || 'Player not recorded';
+      return `
+      <li class="enrol-row">
+        <div class="enrol-main">
+          <b>${esc(r.program)}</b>
+          <span class="enrol-meta">${esc(who)}${r.age_group ? ' · ' + esc(r.age_group) : ''}</span>
+        </div>
+        <span class="enrol-date">${esc(fmtDate(r.created_at))}</span>
+        <span class="enrol-status ${mod}">${esc(label)}</span>
+      </li>`;
+    }).join('');
+  }
+
+  /**
+   * Loaded on its own request, not folded into /api/me. It is the least
+   * important thing on the page, so a failure here shows one message in this
+   * card and leaves the profile and players working.
+   */
+  async function loadHistory() {
+    try {
+      clearErr($('histErr'));
+      const data = await api('/api/enrollments');
+      renderEnrollments(data.enrollments ?? []);
+    } catch (err) {
+      if (err.message !== 'signed out') {
+        enrolList.innerHTML = '';
+        showErr($('histErr'), 'Could not load your enrollments. Please refresh.');
+      }
+    }
+  }
+
+  // Enrolling from this page leaves the list on screen, so it has to be reread.
+  // enroll.js announces the save; see the dispatch there.
+  document.addEventListener('sta:enrolled', () => {
+    status($('histStatus'), 'Updating…', 0);
+    loadHistory().then(() => status($('histStatus'), 'Updated'));
+  });
+
   // ── load ───────────────────────────────────────────────────────────────
 
   (async () => {
+    // Not awaited: the history is independent of the profile, and waiting for
+    // one before starting the other only makes the page slower.
+    loadHistory();
     try {
       // Programmes first so the eligibility line is present on first paint.
       programs = await fetch('/api/programs').then((r) => r.json()).catch(() => []);
