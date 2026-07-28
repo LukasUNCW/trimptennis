@@ -196,10 +196,15 @@
 
   // Topics come from the Worker so the menu cannot drift from what
   // /api/inquiry submissions are validated against.
+  // ?topic= lets a programme page deep-link with its subject already chosen.
+  // Validated against the served list, so a crafted URL cannot inject an option.
+  const wantedTopic = new URLSearchParams(location.search).get('topic');
+
   fetch('/api/inquiry-topics')
     .then((r) => r.json())
     .then((topics) => {
       topicSel.innerHTML = topics.map((t) => `<option value="${t}">${t}</option>`).join('');
+      if (wantedTopic && topics.includes(wantedTopic)) topicSel.value = wantedTopic;
     })
     .catch(() => {
       topicSel.innerHTML = '<option value="General Inquiry">General Inquiry</option>';
