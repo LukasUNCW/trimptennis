@@ -27,6 +27,11 @@
         <select id="ef-program" name="program" required></select>
       </div>
 
+      <div class="field" id="ef-saved-wrap" hidden>
+        <label for="ef-saved">Who is playing?</label>
+        <select id="ef-saved"></select>
+      </div>
+
       <div class="field-row">
         <div class="field">
           <label for="ef-player" id="ef-player-label">Player's full name <span class="req">*</span></label>
@@ -92,9 +97,13 @@
   const parentInput = document.getElementById('ef-parent');
   const guardianRow = document.getElementById('ef-row-guardian');
   const playerLabel = document.getElementById('ef-player-label');
+  const savedWrap   = document.getElementById('ef-saved-wrap');
+  const savedSel    = document.getElementById('ef-saved');
 
   let programs = null;   // catalog from /api/programs, fetched once
   let widgetId = null;   // Turnstile widget handle, so we can reset it
+  let me = null;         // signed-in account + children, or null for a guest
+  let mePromise = null;  // in-flight /api/me, so a quick second open does not refetch
 
   const showErr = (msg) => { errBox.textContent = msg; errBox.hidden = false; };
   const clearErr = () => { errBox.hidden = true; };
@@ -164,7 +173,72 @@
     submitBt.disabled = false;
   }
 
-  async function open(slug) {
+  /**
+   * Loads the signed-in account once, if there is one. A 401 is the normal
+   * answer for a guest, not an error — enrolling without an account is
+   * supported and must not be blocked by this failing.
+   */
+  function loadMe() {
+    if (me !== null) return Promise.resolve(me);
+    if (!mePromise) {
+      mePromise = fetch('/api/me', { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : false))
+        .catch(() => false)
+        .then((data) => { me = data; return me; });
+    }
+    return mePromise;
+  }
+
+  /** Fills the parent fields from the account, without clobbering typing. */
+  function prefillFromAccount() {
+    if (!me || !me.account) return;
+    const a = me.account;
+    const set = (el, v) => { if (el && !el.value && v) el.value = v; };
+    set(document.getElementById('ef-parent'), [a.first_name, a.last_name].filter(Boolean).join(' '));
+    set(document.getElementById('ef-email'), a.email);
+    set(document.getElementById('ef-phone'), a.phone);
+  }
+
+  /**
+   * Offers the account's saved players. Choosing one sends its id, and the
+   * Worker takes the name from the stored record rather than from this form.
+   */
+  function buildSavedPlayers() {
+    const kids = (me && me.children) || [];
+    if (!kids.length) { savedWrap.hidden = true; return; }
+    savedWrap.hidden = false;
+    savedSel.innerHTML =
+      kids.map((c) => `<option value="${c.id}">${c.first_name}${c.last_name ? ' ' + c.last_name : ''}</option>`).join('') +
+      '<option value="">Someone else…</option>';
+    applySavedPlayer();
+  }
+
+  function applySavedPlayer() {
+    const kids = (me && me.children) || [];
+    const child = kids.find((c) => c.id === savedSel.value);
+    const nameField = document.getElementById('ef-player');
+
+    if (!child) {                       // "Someone else…" — type a name
+      nameField.readOnly = false;
+      nameField.value = '';
+      return;
+    }
+    nameField.value = [child.first_name, child.last_name].filter(Boolean).join(' ');
+    nameField.readOnly = true;          // the stored record is the source of truth
+
+    // Preselect the age group this child's birth year falls into, if the
+    // chosen programme has one that fits.
+    if (child.birth_year) {
+      const age = new Date().getUTCFullYear() - Number(child.birth_year);
+      const fit = [...ageSel.options].find((o) => {
+        const m = /^(\d+)-(\d+)$/.exec(o.value);
+        return m && age >= +m[1] && age <= +m[2];
+      });
+      if (fit) ageSel.value = fit.value;
+    }
+  }
+
+  async function open(slug, childId) {
     clearErr();
     form.hidden = false;
     done.hidden = true;
@@ -178,8 +252,25 @@
     } catch {
       showErr('Could not load the program list. Please refresh and try again.');
     }
+
+    await loadMe();
+    prefillFromAccount();
+    buildSavedPlayers();
+    if (childId && [...savedSel.options].some((o) => o.value === childId)) {
+      savedSel.value = childId;
+      applySavedPlayer();
+    }
+    syncAgeGroups();
+    if (childId) applySavedPlayer();   // age group again, now the menu is right
+
     await mountTurnstile();
   }
+
+  savedSel.addEventListener('change', applySavedPlayer);
+
+  // Lets the account page open the dialog for a specific saved player instead
+  // of faking a click and then poking at fields on a timer.
+  window.staEnroll = { open };
 
   document.addEventListener('click', (e) => {
     const trigger = e.target.closest('[data-enroll]');
@@ -195,6 +286,9 @@
 
     const body = {
       program:      progSel.value,
+      // present only for a saved player; the Worker then takes the name from
+      // the stored record and ignores player_name below
+      child_id:     (savedWrap.hidden || !savedSel.value) ? undefined : savedSel.value,
       player_name:  document.getElementById('ef-player').value,
       age_group:    ageSel.value,
       parent_name:  document.getElementById('ef-parent').value,

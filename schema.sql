@@ -23,8 +23,14 @@ CREATE TABLE IF NOT EXISTS enrollments (
   program TEXT NOT NULL,            -- display name from worker/programs.ts
   payment_status TEXT NOT NULL DEFAULT 'awaiting_payment',
   qbo_payment_id TEXT,              -- QuickBooks Payment id, once reconciled
-  notes TEXT
+  notes TEXT,
+  -- Set when the enrolment came from a signed-in account. Both stay NULL for
+  -- guest enrolments, which remain supported on purpose: requiring an account
+  -- before payment would cost real signups.
+  account_id TEXT REFERENCES accounts(id),
+  child_id TEXT REFERENCES children(id)
 );
+CREATE INDEX IF NOT EXISTS idx_enrollments_account ON enrollments (account_id);
 
 CREATE INDEX IF NOT EXISTS idx_enrollments_payment ON enrollments (payment_status);
 CREATE INDEX IF NOT EXISTS idx_enrollments_program ON enrollments (program);

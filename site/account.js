@@ -88,7 +88,7 @@
           ${c.notes ? `<span class="child-note">${esc(c.notes)}</span>` : ''}
         </div>
         <div class="child-actions">
-          <button type="button" class="child-btn" data-enroll-child="${esc(c.first_name)}">Enroll</button>
+          <button type="button" class="child-btn" data-enroll-child="${esc(c.id)}">Enroll</button>
           <button type="button" class="child-btn danger" data-remove="${esc(c.id)}">Remove</button>
         </div>
       </li>`).join('');
@@ -195,15 +195,18 @@
       return;
     }
 
-    // Enrolling a saved player opens the shared dialog from enroll.js and
-    // pre-fills the name, which is the whole point of storing them.
+    // Enrolling a saved player hands the child's id to the shared dialog, which
+    // selects it and submits it — so the Worker links the enrolment to this
+    // account and this child rather than matching on a typed name.
     const enrol = e.target.closest('[data-enroll-child]');
     if (enrol) {
-      document.querySelector('[data-enroll]')?.dispatchEvent(new Event('click', { bubbles: true }));
-      setTimeout(() => {
-        const field = document.getElementById('ef-player');
-        if (field) { field.value = enrol.getAttribute('data-enroll-child'); field.focus(); }
-      }, 300);
+      const childId = enrol.getAttribute('data-enroll-child');
+      if (window.staEnroll) {
+        window.staEnroll.open('', childId);
+      } else {
+        // enroll.js not loaded for some reason; the programmes page still works
+        location.href = '/#programs';
+      }
     }
   });
 })();

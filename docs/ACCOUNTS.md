@@ -1,6 +1,15 @@
 # Parent accounts — scope
 
-Status: **proposal, nothing built.** Written 2026-07-27.
+Status: **phases 1-3 built and deployed.** Written 2026-07-27, updated 2026-07-28.
+
+- Phase 1 (magic-link sign-in) — done. `npm run test:account`
+- Phase 2 (profile + children at /account) — done. `npm run test:account`
+- Phase 3 (enrolment linked to account + child) — done. `npm run test:enroll`
+- Phase 4 (enrolment history on the account page) — not started
+
+Still outstanding: changing the sign-in email needs a confirmation link to the
+new address before it can be offered, and the sending domain must be verified in
+Resend before any of this reaches a real parent.
 
 ## Why an account exists at all
 

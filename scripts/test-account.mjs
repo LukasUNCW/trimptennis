@@ -12,10 +12,7 @@
 // NOTE: this runs against production data. It only ever touches rows whose
 // email matches acctest-%@example.com.
 import { execFileSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
 import { createHash, randomBytes } from 'node:crypto';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 
 const B = 'https://trimptennis.lukas-nilsson4321.workers.dev';
 let pass = 0, fail = 0;
@@ -25,14 +22,18 @@ const ok = (name, cond, extra = '') => {
   else { fail++; console.log('  FAIL  ' + name + (extra ? '  <- ' + extra : '')); }
 };
 
-// Routed through a .sql file: passing SQL as --command through a shell gets
-// word-split on Windows, which mangles every statement containing a space.
-const SQL_FILE = join(tmpdir(), 'sta-test-query.sql');
-const d1 = (sql) => {
-  writeFileSync(SQL_FILE, sql, 'utf8');
-  return execFileSync('npx',
-    ['wrangler', 'd1', 'execute', 'trimptennis-db', '--remote', '--file', SQL_FILE],
-    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], shell: true });
+// wrangler is invoked as a JS file rather than through npx: on Windows a .cmd
+// shim needs shell:true, and a shell word-splits the SQL. --command also returns
+// real result rows, whereas --file returns only an import summary.
+const wrangler = (args) => execFileSync(process.execPath,
+  ["node_modules/wrangler/bin/wrangler.js", ...args],
+  { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+
+const d1 = (sql) => wrangler(["d1", "execute", "trimptennis-db", "--remote", "--json", "--command", sql]);
+
+const query = (sql) => {
+  const out = d1(sql);
+  return JSON.parse(out.slice(out.indexOf("["))).flatMap((r) => r.results ?? []);
 };
 
 /** Mint a session for an email by inserting a token and redeeming it. */

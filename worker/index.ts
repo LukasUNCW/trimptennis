@@ -135,8 +135,29 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
   const program = lookupProgram(body.program);
   if (!program) return json({ error: 'Unknown program.' }, 400);
 
+  // Signing in is optional. A guest enrolment is a first-class path — both
+  // account_id and child_id simply stay NULL.
+  const user = await getSessionUser(env, request);
+
+  let child_id: string | null = null;
+  let player_name = str(body.player_name, 100);
+
+  if (body.child_id) {
+    // Only a signed-in owner may enrol a saved player, and the name is taken
+    // from the stored record rather than the request. Trusting a submitted name
+    // alongside a child id would let the two disagree, and trusting the id
+    // without the ownership check would let anyone enrol another family's child.
+    if (!user) return json({ error: 'Please sign in to use a saved player.' }, 401);
+    const child = await env.DB
+      .prepare('SELECT id, first_name, last_name FROM children WHERE id = ?1 AND account_id = ?2')
+      .bind(String(body.child_id), user.account_id)
+      .first<{ id: string; first_name: string; last_name: string | null }>();
+    if (!child) return json({ error: 'That player is not on your account.' }, 400);
+    child_id = child.id;
+    player_name = [child.first_name, child.last_name].filter(Boolean).join(' ');
+  }
+
   const parent_email = str(body.parent_email, 200);
-  const player_name = str(body.player_name, 100);
   if (!player_name || !parent_email || !parent_email.includes('@')) {
     return json({ error: 'A name and a valid email address are required.' }, 400);
   }
@@ -163,17 +184,21 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
     age_group,
     program: program.name,
     payment_status: 'awaiting_payment',
-    notes: str(body.notes, 2000)
+    notes: str(body.notes, 2000),
+    account_id: user?.account_id ?? null,
+    child_id
   };
 
   await env.DB
     .prepare(
       `INSERT INTO enrollments
-       (id, parent_name, parent_email, phone, player_name, age_group, program, payment_status, notes)
-       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)`
+       (id, parent_name, parent_email, phone, player_name, age_group, program,
+        payment_status, notes, account_id, child_id)
+       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)`
     )
     .bind(row.id, row.parent_name, row.parent_email, row.phone, row.player_name,
-          row.age_group, row.program, row.payment_status, row.notes)
+          row.age_group, row.program, row.payment_status, row.notes,
+          row.account_id, row.child_id)
     .run();
 
   ctx.waitUntil(notifyEnrollment(env, {
