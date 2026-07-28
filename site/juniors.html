@@ -47,6 +47,19 @@
     <p class="motto">Fun · Friends · Fundamentals</p>
     <p>Two junior clinics at the UNCW courts. Grom's is where a first racquet
       gets picked up; Shredder's is where rallies turn into real matches.</p>
+
+    <!-- JPEG only, no <picture>: WebP encoded larger than mozjpeg at 800px for
+         this photo (grass and chain-link), so npm run images withholds it.
+         Cropped 16/9 from the top, which trims lawn rather than faces. -->
+    <figure class="banner-photo">
+      <img src="images/juniors-champs-2015-800.jpg"
+           srcset="images/juniors-champs-2015-800.jpg 800w, images/juniors-champs-2015-1600.jpg 1600w"
+           sizes="(max-width:1180px) calc(100vw - 56px), 1124px"
+           width="1600" height="1200" loading="lazy"
+           alt="A Trimp Tennis junior team holding award plaques and a USTA Southern 2015 Section Champions sign for the 12 and under intermediate division.">
+      <figcaption>USTA Southern section champions — 12 &amp; under intermediate,
+        2015. Grom's and Shredder's are where those teams come from.</figcaption>
+    </figure>
   </div>
 </section>
 
@@ -80,9 +93,6 @@
     </div>
 
     <aside class="prog-facts">
-      <div class="photo-ph ph-teal">
-        <span>Photo — Grom's clinic<br>on court at UNCW</span>
-      </div>
       <dl class="fact-list">
         <div><dt>Ages</dt><dd>6–12</dd></div>
         <div><dt>When</dt><dd>Tuesdays &amp; Thursdays<br>4:00 – 5:00 PM</dd></div>
@@ -126,9 +136,6 @@
     </div>
 
     <aside class="prog-facts">
-      <div class="photo-ph ph-navy">
-        <span>Photo — Shredder's<br>match play</span>
-      </div>
       <dl class="fact-list">
         <div><dt>Ages</dt><dd>9–16</dd></div>
         <div><dt>When</dt><dd>Monday – Thursday<br>5:00 – 6:30 PM</dd></div>
