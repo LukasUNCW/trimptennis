@@ -10,7 +10,12 @@
   // everything else (e.g. /webhook, /api/*) invokes the Worker code.
   "assets": {
     "directory": "./site",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    // Static assets are normally served without invoking the Worker at all,
+    // which meant the session check on /account never ran and a signed-out
+    // visitor was handed the page shell instead of being redirected. Listing the
+    // path here makes the Worker run first so it can gate the page.
+    "run_worker_first": ["/account"]
   },
 
   // D1 database — fill in database_id after running `wrangler d1 create` (see SETUP.md)

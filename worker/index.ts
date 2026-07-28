@@ -6,7 +6,9 @@
 //        POST /api/auth/request   email a magic sign-in link
 //        GET  /auth/callback      redeem the link, open a session
 //        POST /api/auth/logout    end the session
-//        GET  /api/me             the signed-in account, or 401
+//        GET  /api/me             the signed-in account + children, or 401
+//        PATCH /api/me            update the profile (never the email)
+//        POST/PATCH/DELETE /api/children[/:id]   manage children
 //        GET  /api/programs  catalog the enrollment form builds its menus from
 //        POST /api/enroll    enrollment form → D1 + email, returns the
 //                            QuickBooks payment link to redirect the parent to
@@ -65,11 +67,29 @@ export default {
         });
       }
       if (request.method === 'GET' && pathname === '/api/me') {
-        const user = await getSessionUser(env, request);
-        if (!user) return json({ error: 'Not signed in' }, 401);
-        return new Response(JSON.stringify(user), {
-          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
-        });
+        return await handleGetMe(request, env);
+      }
+      if (request.method === 'PATCH' && pathname === '/api/me') {
+        return await handlePatchMe(request, env);
+      }
+      if (request.method === 'POST' && pathname === '/api/children') {
+        return await handleCreateChild(request, env);
+      }
+      const childRoute = pathname.match(/^\/api\/children\/([0-9a-f-]{36})$/);
+      if (childRoute && (request.method === 'PATCH' || request.method === 'DELETE')) {
+        return await handleChildMutation(request, env, childRoute[1]);
+      }
+
+      // The account page is a static asset, so the session is checked here
+      // before the asset layer serves it — a signed-out visitor is redirected
+      // rather than shown a shell that then flashes to a login screen.
+      if (request.method === 'GET' && pathname === '/account') {
+        if (!(await getSessionUser(env, request))) {
+          return new Response(null, {
+            status: 302,
+            headers: { Location: '/login', 'Cache-Control': 'no-store' }
+          });
+        }
       }
 
       if (request.method === 'GET' && pathname === '/qbo/connect') {
@@ -168,6 +188,168 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
     // shows a "the office will follow up" confirmation instead of redirecting.
     payUrl: program.payUrl
   });
+}
+
+// ── account & children (docs/ACCOUNTS.md phase 2) ────────────────────────
+//
+// Every one of these is a state change behind a session cookie, which raises
+// CSRF. Two things cover it: the cookie is SameSite=Lax, so it is not attached
+// to cross-site POST/PATCH/DELETE at all, and each handler requires a JSON
+// body — a request an HTML form could forge cannot set Content-Type to
+// application/json. No token is needed on top of that.
+
+const PROFILE_FIELDS = ['first_name', 'last_name', 'phone', 'address1', 'address2', 'city', 'state', 'zip'] as const;
+
+/** Loads the account plus its children, or null when not signed in. */
+async function loadMe(env: Env, request: Request) {
+  const user = await getSessionUser(env, request);
+  if (!user) return null;
+
+  const account = await env.DB
+    .prepare(
+      `SELECT id, email, first_name, last_name, phone, address1, address2, city, state, zip
+       FROM accounts WHERE id = ?1`
+    )
+    .bind(user.account_id)
+    .first<Record<string, unknown>>();
+
+  const children = await env.DB
+    .prepare(
+      `SELECT id, first_name, last_name, birth_year, notes
+       FROM children WHERE account_id = ?1 ORDER BY birth_year DESC, first_name`
+    )
+    .bind(user.account_id)
+    .all<Record<string, unknown>>();
+
+  return { account, children: children.results };
+}
+
+const noStore = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
+  });
+
+async function handleGetMe(request: Request, env: Env): Promise<Response> {
+  const me = await loadMe(env, request);
+  if (!me) return json({ error: 'Not signed in' }, 401);
+  return noStore(me);
+}
+
+/** Reads a JSON body, rejecting anything that is not declared as JSON. */
+async function jsonBody(request: Request): Promise<any | null> {
+  if (!(request.headers.get('Content-Type') ?? '').includes('application/json')) return null;
+  try { return await request.json(); } catch { return null; }
+}
+
+async function handlePatchMe(request: Request, env: Env): Promise<Response> {
+  const user = await getSessionUser(env, request);
+  if (!user) return json({ error: 'Not signed in' }, 401);
+
+  const body = await jsonBody(request);
+  if (!body) return json({ error: 'Expected a JSON body.' }, 400);
+
+  // email is deliberately absent from PROFILE_FIELDS: it is the sign-in
+  // identity, so changing it here would either lock someone out on a typo or
+  // let a hijacked session move the account to another address. It needs a
+  // confirmation link sent to the new address first — see docs/ACCOUNTS.md.
+  const updates: string[] = [];
+  const values: (string | null)[] = [];
+  for (const f of PROFILE_FIELDS) {
+    if (!(f in body)) continue;
+    updates.push(`${f} = ?${updates.length + 1}`);
+    values.push(str(body[f], f === 'address1' || f === 'address2' ? 200 : 100));
+  }
+  if (!updates.length) return json({ error: 'Nothing to update.' }, 400);
+
+  await env.DB
+    .prepare(`UPDATE accounts SET ${updates.join(', ')} WHERE id = ?${values.length + 1}`)
+    .bind(...values, user.account_id)
+    .run();
+
+  return noStore((await loadMe(env, request))!);
+}
+
+/** Shared validation for a child record. */
+function readChild(body: any): { first_name: string; last_name: string | null; birth_year: number | null; notes: string | null } | string {
+  const first_name = str(body?.first_name, 100);
+  if (!first_name) return "Please enter the child's first name.";
+
+  let birth_year: number | null = null;
+  if (body?.birth_year !== undefined && body?.birth_year !== null && body?.birth_year !== '') {
+    const y = Number(body.birth_year);
+    const thisYear = new Date().getUTCFullYear();
+    // A tennis academy has no 3-year-olds and no 100-year-old juniors; a range
+    // check turns a mistyped year into a clear message rather than a child who
+    // silently matches no programme.
+    if (!Number.isInteger(y) || y < thisYear - 80 || y > thisYear) {
+      return `Please enter a birth year between ${thisYear - 80} and ${thisYear}.`;
+    }
+    birth_year = y;
+  }
+
+  return { first_name, last_name: str(body?.last_name, 100), birth_year, notes: str(body?.notes, 1000) };
+}
+
+async function handleCreateChild(request: Request, env: Env): Promise<Response> {
+  const user = await getSessionUser(env, request);
+  if (!user) return json({ error: 'Not signed in' }, 401);
+
+  const body = await jsonBody(request);
+  if (!body) return json({ error: 'Expected a JSON body.' }, 400);
+
+  const child = readChild(body);
+  if (typeof child === 'string') return json({ error: child }, 400);
+
+  await env.DB
+    .prepare(
+      `INSERT INTO children (id, account_id, first_name, last_name, birth_year, notes)
+       VALUES (?1,?2,?3,?4,?5,?6)`
+    )
+    .bind(crypto.randomUUID(), user.account_id, child.first_name, child.last_name, child.birth_year, child.notes)
+    .run();
+
+  return noStore((await loadMe(env, request))!);
+}
+
+async function handleChildMutation(request: Request, env: Env, childId: string): Promise<Response> {
+  const user = await getSessionUser(env, request);
+  if (!user) return json({ error: 'Not signed in' }, 401);
+
+  // Ownership is checked before anything is touched, and every statement below
+  // is scoped by account_id too. Without this, knowing a child's id would be
+  // enough to read or edit another family's record.
+  const owned = await env.DB
+    .prepare('SELECT id FROM children WHERE id = ?1 AND account_id = ?2')
+    .bind(childId, user.account_id)
+    .first<{ id: string }>();
+  // 404 rather than 403: confirming that an id exists but belongs to somebody
+  // else is itself a disclosure.
+  if (!owned) return json({ error: 'Not found.' }, 404);
+
+  if (request.method === 'DELETE') {
+    await env.DB
+      .prepare('DELETE FROM children WHERE id = ?1 AND account_id = ?2')
+      .bind(childId, user.account_id)
+      .run();
+    return noStore((await loadMe(env, request))!);
+  }
+
+  const body = await jsonBody(request);
+  if (!body) return json({ error: 'Expected a JSON body.' }, 400);
+
+  const child = readChild(body);
+  if (typeof child === 'string') return json({ error: child }, 400);
+
+  await env.DB
+    .prepare(
+      `UPDATE children SET first_name=?1, last_name=?2, birth_year=?3, notes=?4
+       WHERE id=?5 AND account_id=?6`
+    )
+    .bind(child.first_name, child.last_name, child.birth_year, child.notes, childId, user.account_id)
+    .run();
+
+  return noStore((await loadMe(env, request))!);
 }
 
 // Emails a sign-in link. The response is identical no matter what happens —

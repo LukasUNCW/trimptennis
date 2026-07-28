@@ -8,7 +8,8 @@
     "deploy": "wrangler deploy",
     "images": "node scripts/optimize-images.mjs",
     "db:schema": "wrangler d1 execute trimptennis-db --remote --file=./schema.sql",
-    "db:schema:local": "wrangler d1 execute trimptennis-db --local --file=./schema.sql"
+    "db:schema:local": "wrangler d1 execute trimptennis-db --local --file=./schema.sql",
+    "test:account": "node scripts/test-account.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260722.1",

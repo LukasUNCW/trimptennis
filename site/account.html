@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My account — Seahawks Tennis Academy</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800;900&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="utility">
+  <div class="wrap">
+    <div class="left">
+      <a href="tel:7044589573">704-458-9573</a>
+      <span class="hide-sm"><a href="mailto:info@seahawkstennisacademy.com">info@seahawkstennisacademy.com</a></span>
+    </div>
+    <div class="right" id="authNav"></div>
+  </div>
+</div>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/">
+      <img class="brand-mark" src="images/uncw-logo.svg" width="44" height="44" alt="">
+      <span class="brand-name"><b>Seahawks Tennis Academy</b><span>Wilmington · North Carolina</span></span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="/#programs">Programs</a></li>
+      <li><a href="/#coaches">Coaches</a></li>
+      <li><a href="#">Schedule</a></li>
+      <li><a href="/contact">Contact</a></li>
+    </ul>
+    <div class="nav-cta">
+      <a class="btn btn-gold" href="#" data-enroll="">Register now</a>
+    </div>
+  </div>
+</header>
+
+<section class="page-head">
+  <div class="wrap">
+    <span class="eyebrow">Your account</span>
+    <h1 id="acHeading">My account</h1>
+    <p>Your details and your players. Payments and receipts live in QuickBooks —
+      the academy will email those to you.</p>
+  </div>
+</section>
+
+<section class="account">
+  <div class="wrap account-grid">
+
+    <!-- ── your details ───────────────────────────────────────────────── -->
+    <div class="ac-card">
+      <div class="ac-head">
+        <h2>Your details</h2>
+        <span class="ac-status" id="profileStatus" role="status"></span>
+      </div>
+
+      <div class="enroll-msg" id="profileErr" role="alert" hidden></div>
+
+      <form id="profileForm" novalidate>
+        <div class="field">
+          <label for="ac-email">Email</label>
+          <input id="ac-email" type="email" disabled>
+          <p class="field-note">This is how you sign in, so it can't be changed
+            here. <a href="/contact?topic=General%20Inquiry">Ask the office</a> to
+            move your account to a different address.</p>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="ac-first">First name</label>
+            <input id="ac-first" name="first_name" maxlength="100" autocomplete="given-name">
+          </div>
+          <div class="field">
+            <label for="ac-last">Last name</label>
+            <input id="ac-last" name="last_name" maxlength="100" autocomplete="family-name">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="ac-phone">Phone</label>
+          <input id="ac-phone" name="phone" type="tel" maxlength="40" autocomplete="tel">
+        </div>
+
+        <div class="field">
+          <label for="ac-addr1">Address</label>
+          <input id="ac-addr1" name="address1" maxlength="200" autocomplete="address-line1" placeholder="Street address">
+        </div>
+        <div class="field">
+          <label for="ac-addr2" class="sr-only">Address line 2</label>
+          <input id="ac-addr2" name="address2" maxlength="200" autocomplete="address-line2" placeholder="Apartment, suite (optional)">
+        </div>
+
+        <div class="field-row three">
+          <div class="field">
+            <label for="ac-city">City</label>
+            <input id="ac-city" name="city" maxlength="100" autocomplete="address-level2">
+          </div>
+          <div class="field">
+            <label for="ac-state">State</label>
+            <input id="ac-state" name="state" maxlength="100" autocomplete="address-level1" placeholder="NC">
+          </div>
+          <div class="field">
+            <label for="ac-zip">Zip</label>
+            <input id="ac-zip" name="zip" maxlength="100" autocomplete="postal-code" inputmode="numeric">
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-teal" id="profileSave">Save details</button>
+      </form>
+    </div>
+
+    <!-- ── your players ───────────────────────────────────────────────── -->
+    <div class="ac-card">
+      <div class="ac-head">
+        <h2>Your players</h2>
+        <span class="ac-status" id="childStatus" role="status"></span>
+      </div>
+      <p class="ac-lede">Add each child once and enrolling them is a couple of
+        clicks instead of a form.</p>
+
+      <div class="enroll-msg" id="childErr" role="alert" hidden></div>
+
+      <ul class="child-list" id="childList"></ul>
+
+      <details class="child-add" id="childAdd">
+        <summary>+ Add a player</summary>
+        <form id="childForm" novalidate>
+          <div class="field-row">
+            <div class="field">
+              <label for="ch-first">First name <span class="req">*</span></label>
+              <input id="ch-first" name="first_name" maxlength="100" required>
+            </div>
+            <div class="field">
+              <label for="ch-last">Last name</label>
+              <input id="ch-last" name="last_name" maxlength="100">
+            </div>
+          </div>
+          <div class="field" style="max-width:180px">
+            <label for="ch-year">Birth year</label>
+            <input id="ch-year" name="birth_year" inputmode="numeric" maxlength="4" placeholder="2014">
+          </div>
+          <div class="field">
+            <label for="ch-notes">Anything the coaches should know?</label>
+            <textarea id="ch-notes" name="notes" maxlength="1000" rows="2"></textarea>
+          </div>
+          <div class="prog-cta" style="margin-top:6px">
+            <button type="submit" class="btn btn-teal" id="childSave">Add player</button>
+            <button type="button" class="btn btn-ghost" id="childCancel">Cancel</button>
+          </div>
+        </form>
+      </details>
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-bottom" style="border:none;padding-top:0">
+      <span>© 2026 Seahawks Tennis Academy. All rights reserved.</span>
+      <span><a href="/contact" style="color:#8FA1B8">Contact us</a></span>
+    </div>
+  </div>
+</footer>
+
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+<script src="enroll.js" defer></script>
+<script src="auth-nav.js" defer></script>
+<script src="account.js" defer></script>
+
+</body>
+</html>
