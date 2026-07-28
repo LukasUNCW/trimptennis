@@ -411,5 +411,5 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
 
 /* offering tiles carry a photo bled to the card edges */
 .offer-photo{margin:-26px -26px 18px;border-radius:var(--radius) var(--radius) 0 0;overflow:hidden}
-.offer-photo img{width:100%;aspect-ratio:4/3;object-fit:cover}
+.offer-photo img{width:100%;height:auto}
 .photo-ph.tile{aspect-ratio:4/3;border-radius:0;font-size:10.5px}

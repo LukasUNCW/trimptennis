@@ -31,11 +31,11 @@ const JOBS = [
   // full content width on /juniors (~1124px), so 800 for mobile and 1600 above
   { src: 'juniors-section-champs-2015.jpg', out: 'juniors-champs-2015', widths: [800, 1600] },
   // adult offering tiles are ~359px wide in the 3-up grid, so 400 plus retina 800
-  { src: 'adults-ladies-team.jpg', out: 'adults-ladies-team', widths: [400, 800] },
-  { src: 'adults-mens-team.jpg',   out: 'adults-mens-team',   widths: [400, 800] },
-  // portrait selfie (EXIF-rotated), so it needs more height than the tile shows;
-  // the CSS centre crop keeps both faces — see the note in adults.html
-  { src: 'adults-private-lesson.jpg', out: 'adults-private-lesson', widths: [400, 800] },
+  { src: 'adults-ladies-team.jpg', out: 'adults-ladies-team', widths: [400, 800], ratio: 4/3 },
+  { src: 'adults-mens-team.jpg',   out: 'adults-mens-team',   widths: [400, 800], ratio: 4/3 },
+  // Portrait selfie with one face high and one low. focusY pushes the window
+  // below centre so both smiles survive the crop to a landscape tile.
+  { src: 'adults-private-lesson.jpg', out: 'adults-private-lesson', widths: [400, 800], ratio: 4/3, focusY: 0.62 },
   { src: 'logan-trimp.jpg',    out: 'staff/logan-trimp',    widths: [320, 640] },
   { src: 'mait-dubois.jpg',    out: 'staff/mait-dubois',    widths: [320, 640] },
   { src: 'john-trimp.jpg',     out: 'staff/john-trimp',     widths: [320, 640] },
@@ -50,9 +50,16 @@ const manifest = [];
 
 for (const job of JOBS) {
   const srcPath = join(SRC, job.src);
-  const original = sharp(srcPath).rotate();
-  const meta = await original.metadata();
   srcTotal += (await stat(srcPath)).size;
+
+  // Rotation is materialised BEFORE anything measures the image, because
+  // sharp().metadata() reports the dimensions as stored, not as displayed. A
+  // phone photo with EXIF orientation 6 is stored landscape and shown portrait,
+  // so measuring first swaps width and height — which silently pointed the crop
+  // window and the never-enlarge clamp at the wrong axis.
+  const rotated = await sharp(srcPath).rotate().toBuffer();
+  const original = sharp(rotated);
+  const meta = await sharp(rotated).metadata();
 
   // Clamp to the source width and drop duplicates, so a 200px original yields
   // one 200px output instead of two identical files named 320 and 640.
@@ -67,7 +74,33 @@ for (const job of JOBS) {
   // to be made for the image as a whole.
   const encoded = [];
   for (const width of targets) {
-    const resized = original.clone().resize({ width, withoutEnlargement: true });
+    // `ratio` bakes the crop into the file instead of leaving it to CSS
+    // object-fit. Tiles that must line up in a grid should always use it:
+    // depending on the browser to crop at render time meant three tiles of
+    // three different heights, which dragged every card's text out of line.
+    let resized;
+    if (job.ratio) {
+      // focusY picks where the crop window sits vertically: 0 = flush top,
+      // 0.5 = centred, 1 = flush bottom. A centred window is wrong whenever the
+      // subject is not centred — on a selfie with one face high and one low it
+      // clipped both chins.
+      const focusY = job.focusY ?? 0.5;
+      const winH = Math.round(meta.width / job.ratio);
+      if (winH < meta.height) {
+        const top = Math.round((meta.height - winH) * focusY);
+        resized = original.clone()
+          .extract({ left: 0, top, width: meta.width, height: winH })
+          .resize({ width, withoutEnlargement: true });
+      } else {
+        // source is not tall enough to crop vertically, so crop the sides
+        const winW = Math.round(meta.height * job.ratio);
+        resized = original.clone()
+          .extract({ left: Math.round((meta.width - winW) / 2), top: 0, width: winW, height: meta.height })
+          .resize({ width, withoutEnlargement: true });
+      }
+    } else {
+      resized = original.clone().resize({ width, withoutEnlargement: true });
+    }
     encoded.push({
       width,
       webp: await resized.clone().webp({ quality: 80 }).toBuffer(),
