@@ -30,6 +30,9 @@ const JOBS = [
   { src: 'elite-squad-2025.jpg', out: 'elite-squad-2025',   widths: [440, 880] },
   // full content width on /juniors (~1124px), so 800 for mobile and 1600 above
   { src: 'juniors-section-champs-2015.jpg', out: 'juniors-champs-2015', widths: [800, 1600] },
+  // adult offering tiles are ~359px wide in the 3-up grid, so 400 plus retina 800
+  { src: 'adults-ladies-team.jpg', out: 'adults-ladies-team', widths: [400, 800] },
+  { src: 'adults-mens-team.jpg',   out: 'adults-mens-team',   widths: [400, 800] },
   { src: 'logan-trimp.jpg',    out: 'staff/logan-trimp',    widths: [320, 640] },
   { src: 'mait-dubois.jpg',    out: 'staff/mait-dubois',    widths: [320, 640] },
   { src: 'john-trimp.jpg',     out: 'staff/john-trimp',     widths: [320, 640] },
