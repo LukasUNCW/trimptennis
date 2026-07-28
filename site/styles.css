@@ -15,6 +15,11 @@
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html{scroll-behavior:smooth}
+/* An in-page link scrolls its target to y=0, which on this site is underneath
+   the sticky header. scroll-margin-top holds the heading clear of it: 77px of
+   nav plus breathing room, and 125px where the jump bar is stacked below it. */
+[id]{scroll-margin-top:92px}
+body.has-jumpbar [id]{scroll-margin-top:140px}
 body{font-family:var(--font-display);color:var(--ink);background:var(--white);line-height:1.6;font-size:16px}
 img{max-width:100%;display:block}
 a{color:inherit}
@@ -363,8 +368,6 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
 @media (max-width:980px){
   .prog-detail-grid{grid-template-columns:1fr;gap:34px}
   .prog-detail{padding:46px 0}
-  .prog-jump{top:0}
-  .prog-jump a:last-child{margin-left:0}
 }
 
 /* real photo in a programme aside — height:auto so nothing is cropped */
