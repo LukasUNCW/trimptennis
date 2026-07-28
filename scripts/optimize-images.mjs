@@ -33,6 +33,9 @@ const JOBS = [
   // adult offering tiles are ~359px wide in the 3-up grid, so 400 plus retina 800
   { src: 'adults-ladies-team.jpg', out: 'adults-ladies-team', widths: [400, 800] },
   { src: 'adults-mens-team.jpg',   out: 'adults-mens-team',   widths: [400, 800] },
+  // portrait selfie (EXIF-rotated), so it needs more height than the tile shows;
+  // the CSS centre crop keeps both faces — see the note in adults.html
+  { src: 'adults-private-lesson.jpg', out: 'adults-private-lesson', widths: [400, 800] },
   { src: 'logan-trimp.jpg',    out: 'staff/logan-trimp',    widths: [320, 640] },
   { src: 'mait-dubois.jpg',    out: 'staff/mait-dubois',    widths: [320, 640] },
   { src: 'john-trimp.jpg',     out: 'staff/john-trimp',     widths: [320, 640] },

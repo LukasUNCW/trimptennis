@@ -109,9 +109,14 @@
 
       <article class="offer-card">
         <figure class="offer-photo">
-          <!-- No private-lesson photo supplied yet; the two team tiles beside
-               this one are real. Swap in an <img> when one arrives. -->
-          <div class="photo-ph ph-navy tile"><span>Photo — private lesson</span></div>
+          <!-- Portrait selfie in a landscape tile, so the crop matters: the two
+               faces sit far apart vertically and a 3/2 window sliced through both
+               chins. 4/3 holds them, which is why all three tiles use it. -->
+          <img src="images/adults-private-lesson-400.jpg"
+               srcset="images/adults-private-lesson-400.jpg 400w, images/adults-private-lesson-800.jpg 800w"
+               sizes="(max-width:980px) calc(100vw - 56px), 359px"
+               width="800" height="1067" loading="lazy"
+               alt="A coach and an adult student smiling on court during a private lesson.">
         </figure>
         <span class="offer-tag">One to one</span>
         <h3>Private lessons</h3>
