@@ -51,6 +51,12 @@ What that means in practice:
 
 **1. Turn on QuickBooks Payments** (needs the academy's EIN and bank details).
 
+Katie is the QuickBooks admin, so she is the one who enables Payments, creates
+the links, and — if the read-side connection is ever set up — clicks Authorize on
+Intuit's consent screen. Nothing in that list requires her password leaving her:
+the developer app should be created under **our** Intuit developer account so the
+client id and secret are ours, and she only ever authorizes.
+
 **2. Create five payment links** and send them over: Grom's, Shredder's, Summer
 Camp, Elite (one month), Adult. They go into `payUrl` in `worker/programs.ts` —
 until then the form saves the enrolment and shows "the office will follow up"
@@ -76,6 +82,46 @@ image job already use Mait, so nothing needs changing.
 ## Outstanding — DNS
 
 **Verify `seahawkstennisacademy.com` in Resend** (SPF/DKIM records).
+
+The academy owns the domain, but **does not host its own DNS**: the nameservers
+are `ns1`/`ns2.mytenniscenter.com`, their old tennis-website vendor. Records get
+added through that vendor's panel if Katie has the login, or by asking the vendor
+to add them. Owning the domain is not the same as being able to edit the zone —
+budget time for this.
+
+What is already in the zone, as of 2026-07-28:
+
+```
+A       52.167.12.19                    (the old FoundationTennis site)
+MX      tennismail.srvr.media3.us
+TXT     v=spf1 mx a ip4:52.167.12.19 ip4:52.177.245.183 ~all
+_dmarc  v=DMARC1; p=reject; rua=mailto:postmaster@seahawkstennisacademy.com; pct=100
+```
+
+Two traps in there:
+
+- **There is already an SPF record, and a domain may only have one.** A second
+  SPF TXT record makes SPF fail outright and takes the academy's existing email
+  down with it. Whatever Resend asks for must be *merged* into that line — or put
+  on a sending subdomain (`send.seahawkstennisacademy.com`), which leaves the
+  root SPF untouched. The subdomain route still satisfies DMARC, because relaxed
+  alignment counts a subdomain's DKIM as aligned with the root domain. Prefer it.
+- **DMARC is `p=reject`, not `quarantine`.** Mail from the domain that is not
+  correctly DKIM-signed is *rejected*, not spam-foldered. A half-finished Resend
+  setup is therefore worse than the current stopgap: magic links would hard
+  bounce rather than arrive late. Do not point `FROM_EMAIL` at the academy's
+  domain until Resend reports the domain verified. It is safe today only because
+  `onboarding@resend.dev` is Resend's own domain, so this policy does not apply.
+
+Take the exact record values from the Resend dashboard — do not hand-write them.
+(The zone also contains a stray `google-site-verification=goes here`, i.e. a
+placeholder somebody pasted literally. Harmless, but a fair indication that the
+zone is edited by copy-paste, so send exact values and check afterwards.)
+
+The same nameservers are what the eventual cutover of the domain to this Worker
+has to go through. If the zone is ever moved somewhere the academy controls,
+copy **every** record above first — MX, SPF, DMARC and the Google verifications —
+or their email stops.
 
 Until then the shared sender `onboarding@resend.dev` only delivers to the Resend
 account owner. `NOTIFY_EMAIL` is therefore pointed at a personal address as a
