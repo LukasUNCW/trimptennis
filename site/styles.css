@@ -459,3 +459,5 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
   .account{padding:36px 0 64px}
   .field-row.three{grid-template-columns:1fr 1fr}
 }
+.child-btn.quiet{border-color:var(--line);color:var(--navy)}
+.child-btn.quiet:hover{background:var(--navy);border-color:var(--navy);color:#fff}

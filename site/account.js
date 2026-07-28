@@ -20,6 +20,8 @@
   };
 
   let programs = [];   // used to say which programmes a child's age fits
+  let editingId = null; // set while the form is editing an existing player
+  let lastChildren = []; // last rendered list, so Edit can find the record
 
   const showErr = (box, msg) => { box.textContent = msg; box.hidden = false; };
   const clearErr = (box) => { box.hidden = true; };
@@ -75,6 +77,7 @@
   }
 
   function renderChildren(children) {
+    lastChildren = children;
     if (!children.length) {
       childList.innerHTML =
         '<li class="child-empty">No players added yet.</li>';
@@ -89,6 +92,7 @@
         </div>
         <div class="child-actions">
           <button type="button" class="child-btn" data-enroll-child="${esc(c.id)}">Enroll</button>
+          <button type="button" class="child-btn quiet" data-edit="${esc(c.id)}">Edit</button>
           <button type="button" class="child-btn danger" data-remove="${esc(c.id)}">Remove</button>
         </div>
       </li>`).join('');
@@ -141,6 +145,30 @@
 
   // ── children ───────────────────────────────────────────────────────────
 
+  /** Returns the shared form to "add" mode. */
+  function resetChildForm() {
+    editingId = null;
+    childForm.reset();
+    clearErr($('childErr'));
+    $('childSave').textContent = 'Add player';
+    $('childAddSummary').textContent = '+ Add a player';
+    childAdd.open = false;
+  }
+
+  /** Loads a player into the same form, which then PATCHes instead of POSTs. */
+  function startEdit(child) {
+    editingId = child.id;
+    $('ch-first').value = child.first_name ?? '';
+    $('ch-last').value = child.last_name ?? '';
+    $('ch-year').value = child.birth_year ?? '';
+    $('ch-notes').value = child.notes ?? '';
+    clearErr($('childErr'));
+    $('childSave').textContent = 'Save changes';
+    $('childAddSummary').textContent = `Editing ${child.first_name}`;
+    childAdd.open = true;
+    $('ch-year').focus();   // the field most often being filled in
+  }
+
   childForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     clearErr($('childErr'));
@@ -153,16 +181,16 @@
     };
     if (!body.first_name.trim()) return showErr($('childErr'), "Please enter the player's first name.");
 
+    const editing = editingId;   // render() clears it, so capture first
     $('childSave').disabled = true;
     try {
-      render(await api('/api/children', {
-        method: 'POST',
+      render(await api(editing ? `/api/children/${editing}` : '/api/children', {
+        method: editing ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       }));
-      childForm.reset();
-      childAdd.open = false;
-      status($('childStatus'), 'Added');
+      resetChildForm();
+      status($('childStatus'), editing ? 'Saved' : 'Added');
     } catch (err) {
       if (err.message !== 'signed out') showErr($('childErr'), err.message);
     } finally {
@@ -170,13 +198,16 @@
     }
   });
 
-  $('childCancel').addEventListener('click', () => {
-    childForm.reset();
-    clearErr($('childErr'));
-    childAdd.open = false;
-  });
+  $('childCancel').addEventListener('click', resetChildForm);
 
   childList.addEventListener('click', async (e) => {
+    const edit = e.target.closest('[data-edit]');
+    if (edit) {
+      const child = (lastChildren || []).find((c) => c.id === edit.getAttribute('data-edit'));
+      if (child) startEdit(child);
+      return;
+    }
+
     const remove = e.target.closest('[data-remove]');
     if (remove) {
       const row = remove.closest('.child-row');
