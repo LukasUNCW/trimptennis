@@ -42,6 +42,13 @@
   // moment someone signs in or out, so a stale copy shows the wrong bar.
   fetch('/api/me', { cache: 'no-store', headers: { Accept: 'application/json' } })
     .then((r) => (r.ok ? r.json() : null))
-    .then((user) => { if (user && user.email) signedIn(user); })
+    .then((data) => {
+      // /api/me returns { account, children }. It used to return the account
+      // flat, and this line kept reading the old shape after that changed —
+      // which left the bar showing "Log in" to people who were signed in. The
+      // fallback tolerates either shape so it cannot break that way again.
+      const account = data?.account ?? data;
+      if (account?.email) signedIn(account);
+    })
     .catch(() => { /* stay signed out */ });
 })();
