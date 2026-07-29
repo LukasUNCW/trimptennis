@@ -8,7 +8,7 @@
 
 import {
   payUrlError, findDuplicatePayUrls, payUrlProblem, isPayable, hasUnexpectedPayHost,
-  lookupOption, PROGRAMS
+  lookupOption, isEnrollable, PROGRAMS
 } from '../worker/programs.ts';
 
 /** An option literal, so the tests below read as prices rather than plumbing. */
@@ -120,6 +120,17 @@ ok('option ids are unique within each program',
 const priced = allOptions.map((o) => o.price).filter((p) => typeof p === 'number');
 ok('no two priced options share an amount', new Set(priced).size === priced.length,
    priced.join(','));
+console.log('\n— a cancelled season is not sellable —');
+// Camp was pulled 2026-07-29: the remaining August weeks did not fill. It stays
+// in the catalog so a parent's past enrolment still resolves to a readable label,
+// but nothing may be sold.
+ok('summer camp is not enrollable', isEnrollable(PROGRAMS['summer-camp']) === false);
+ok('every other program is', ['groms', 'shredders', 'elite', 'adult']
+   .every((s) => isEnrollable(PROGRAMS[s]) === true));
+ok('an absent flag means enrollable', isEnrollable({ options: [] }) === true);
+ok('camp is still in the catalog, so old rows keep their labels',
+   PROGRAMS['summer-camp'].options.some((o) => o.id === 'week' && o.label));
+
 // Elite sells memberships and drop-ins; only the memberships lead to auto draft.
 const eliteDropIn = PROGRAMS.elite.options.find((o) => o.id === 'drop-in');
 ok('an Elite drop-in does not promise an auto draft',

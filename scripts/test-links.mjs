@@ -38,14 +38,36 @@ for (const p of PAGES) {
 
 console.log('\n— the free trial is reachable —');
 const trialLinks = (html['/'].match(/href="\/contact\?trial=1"/g) ?? []).length;
-// The hero CTA and the "first clinic is on us" section. Both were dead.
-ok('the homepage links to the trial form twice', trialLinks === 2, String(trialLinks));
+// The hero CTA and the "first clinic is on us" section — both of which were dead
+// links — plus the announcement bar, which took over the trial once summer camp
+// was pulled. A floor rather than an exact count: the number is a marketing
+// decision, and "no dead buttons" above is what actually guards the wiring.
+ok('the homepage links to the trial form at least twice', trialLinks >= 2, String(trialLinks));
 ok('the contact page has a trial mode', html['/contact'].includes("get('trial')"));
 ok('trial mode posts kind free_trial', html['/contact'].includes("'free_trial'"));
 ok("trial mode asks for the child's name and age",
    html['/contact'].includes('cf-player') && html['/contact'].includes('cf-age'));
 ok('the trial URL serves the contact page',
    (await fetch(`${B}/contact?trial=1`)).status === 200);
+
+console.log('\n— nothing sells summer camp —');
+// Camp was pulled on 2026-07-29 for lack of numbers. The homepage banner used to
+// say "enrollment is live" with a Save a spot button, and /juniors listed two
+// August weeks at $350 with a working Enroll button. Advertising a cancelled
+// programme is the one failure here that costs someone money and trust.
+for (const p of PAGES) {
+  ok(`${p} has no camp enrol button`, !html[p].includes('data-enroll="summer-camp"'),
+     'a Save a spot / Enroll in summer camp button is back');
+}
+ok('/juniors no longer lists camp dates',
+   !/August · 5 days/.test(html['/juniors']) && !/\$350/.test(html['/juniors']),
+   'dated camp sessions or the $350 price are back on the page');
+ok('the catalog refuses camp signups',
+   (await (await fetch(B + '/api/programs')).json())
+     .find((p) => p.slug === 'summer-camp')?.enrollable === false);
+// Kept listed rather than deleted, so a past enrolment still resolves its label.
+ok('camp is still in the catalog',
+   !!(await (await fetch(B + '/api/programs')).json()).find((p) => p.slug === 'summer-camp'));
 
 console.log('\n— every page has the favicon —');
 // Easy to add to six pages and forget the seventh, and the symptom is a generic

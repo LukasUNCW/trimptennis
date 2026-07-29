@@ -94,16 +94,39 @@ confirmed this list on 2026-07-29:
 | Shredder's — 8x/month | $240 |
 | Shredder's — 12x/month | $330 |
 | Shredder's — drop-in | $35 |
-| Summer Morning Camp — 5-day week | $350 *(awaiting her confirmation; it is what her own camp page publishes)* |
 | Elite — 8x/month, first month | $320 |
 | Elite — 12x/month, first month | $420 |
-| Elite — drop-in | $45 |
-| Adult Programs | **unpriced** — still to be decided |
+| Elite — drop-in | $45 — **standalone**, not a first month, no auto-draft follows |
+| Adult Programs | **unpriced** — the academy has not decided what it is doing with adults |
+| ~~Summer Morning Camp~~ | **dropped** — see below |
+
+So **seven** links now, not nine: camp is off and Adult has no price. Katie said on
+2026-07-29 that she had already sent links in an earlier email — check for them
+before asking again. She is away Thursday and Friday, back Monday.
 
 They go into the matching option's `payUrl` in `worker/programs.ts` — until then
 the form saves the enrolment and shows "the office will follow up" instead of
 redirecting. Send them **one at a time** if that is easier: an option with no link
 simply keeps the follow-up path. See "Prove the first real link" below.
+
+### Summer camp is off — 2026-07-29
+
+John found the two remaining August weeks did not have enough players, so they are
+being cancelled and Katie asked to drop camp for now.
+
+`summer-camp` is therefore **`enrollable: false`** in `worker/programs.ts`. It is
+still in the catalog, deliberately: enrolments already taken store an option id
+that the account page resolves to a readable label through that catalog, so
+deleting the entry would turn a parent's history into raw ids.
+
+What changed on the site: the homepage announcement bar promoted camp signups and
+now promotes the free trial instead; the `/juniors` camp section lost its dates,
+its price and its Enrol button, and says camp is not taking signups.
+
+**To bring it back:** set `enrollable: true`, put next season's dates and price in
+a `price-box` in that section on `/juniors`, and restore the Enrol button. A test
+in `test:links` fails if a camp enrol button or the $350 price reappears while the
+flag is false, so the two cannot drift apart.
 
 **3. Answer three questions:**
 
@@ -112,8 +135,12 @@ simply keeps the follow-up path. See "Prove the first real link" below.
   Calendar and the site renders the feed; per-session registration means a D1
   table plus an admin page. This decides whether the Schedule page is a small job
   or a large one.
-- **Adult rates** — their old page publishes none, so `/adults` says "ask us".
+- **Adult rates** — their old page publishes none, so `/adults` says "ask us". As
+  of 2026-07-29 Katie is "not sure what we are doing with adults right now", so
+  this may become an `enrollable: false` decision like camp rather than a price.
+  Adult enrolment still captures leads for the office in the meantime.
 - **Autumn Grom's dates** — the page still shows a summer session ending 20 Aug.
+  Now the most stale dated content on the site, since camp's dates are gone.
 
 **"Mait DuBois" is settled — do not ask them.** The photo they sent was filed as
 "matt", but UNCW's own athletics site spells it Mait in the men's tennis roster,

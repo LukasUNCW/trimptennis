@@ -24,7 +24,7 @@
 // group) because that is the part QuickBooks does not track.
 
 import type { Env } from './types';
-import { lookupProgram, lookupOption, listPrograms, payUrlFor } from './programs';
+import { lookupProgram, lookupOption, listPrograms, payUrlFor, isEnrollable } from './programs';
 import { buildAuthUrl, exchangeCodeForTokens, listItems, qboConfigured } from './qbo';
 import { notifyEnrollment, notifyInquiry, sendMagicLink } from './email';
 import {
@@ -140,6 +140,15 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
 
   const program = lookupProgram(body.program);
   if (!program) return json({ error: 'Unknown program.' }, 400);
+
+  // Refused server-side as well as hidden from the form. A season that has been
+  // cancelled must not be bookable by a stale page still open in a tab, or by
+  // anyone posting the slug directly.
+  if (!isEnrollable(program)) {
+    return json({
+      error: `${program.name} is not taking signups at the moment — please contact the office.`
+    }, 400);
+  }
 
   // Which price the parent chose. Where a program sells more than one, this is
   // required rather than guessed: defaulting would risk charging $330 for a

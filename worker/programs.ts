@@ -64,6 +64,19 @@ export interface Program {
    * these rows; parent_email is still the contact address.
    */
   selfEnroll?: boolean;
+  /**
+   * False when the program exists but is not currently taking signups — a season
+   * that has finished, or one cancelled for lack of numbers.
+   *
+   * The program stays in the catalog rather than being deleted, for two reasons:
+   * enrolments already taken store the option id, and the account page resolves
+   * that id to a readable label through this catalog, so removing the entry would
+   * turn a parent's history into raw ids. And it comes back next season by
+   * flipping one flag rather than rewriting the file from memory.
+   *
+   * Absent means enrollable. Only ever set it to false explicitly.
+   */
+  enrollable?: boolean;
 }
 
 // Age ranges match the academy's own programme pages, which overlap
@@ -99,9 +112,14 @@ export const PROGRAMS: Record<string, Program> = {
     // borrowing Grom's '6-12' let a 6-year-old sign up for a camp starting at 7.
     // NEEDS CONFIRMING with the office — these are the bands they read off rows.
     ageGroups: ['7-12', '9-16', '13-18'],
+    // Off, on Katie's instruction of 2026-07-29: the two remaining August weeks
+    // are being cancelled for lack of numbers, so nothing should be sold and the
+    // dates must not stay on the page. Set this back to true — and put next
+    // season's dates and price on /juniors — when camp runs again.
+    enrollable: false,
     options: [
-      // $350 is what the academy's own camp page publishes for a 5-day week; the
-      // shorter 4-day week was $300 and has already run. AWAITING CONFIRMATION.
+      // $350 was the 5-day week price on the academy's own camp page. Kept as a
+      // record of what was last charged; not offered while enrollable is false.
       { id: 'week', label: '5-day week', price: 350, payUrl: null }
     ]
   },
@@ -130,6 +148,9 @@ export const PROGRAMS: Record<string, Program> = {
 
 export const lookupProgram = (slug: unknown): Program | null =>
   typeof slug === 'string' && Object.hasOwn(PROGRAMS, slug) ? PROGRAMS[slug] : null;
+
+/** Whether this program is currently taking signups. Absent flag means yes. */
+export const isEnrollable = (p: Program): boolean => p.enrollable !== false;
 
 /**
  * Resolves the option a request asked for.
@@ -271,6 +292,9 @@ export const listPrograms = () =>
     name: p.name,
     ageGroups: p.ageGroups,
     selfEnroll: p.selfEnroll === true,
+    // Still listed even when false, because the account page resolves a stored
+    // option id to its label through this response. The enrol form filters on it.
+    enrollable: isEnrollable(p),
     options: p.options.map((o) => ({
       id: o.id,
       label: o.label,

@@ -148,8 +148,12 @@
     const res = await fetch('/api/programs');
     if (!res.ok) throw new Error('Could not load programs');
     programs = await res.json();
+    // The menu offers only what is currently taking signups. The full list is
+    // kept in `programs` because a cancelled season still needs its option
+    // labels resolvable elsewhere.
     progSel.innerHTML = '<option value="">Choose a program…</option>' +
-      programs.map((p) => `<option value="${p.slug}">${p.name}</option>`).join('');
+      programs.filter((p) => p.enrollable !== false)
+        .map((p) => `<option value="${esc(p.slug)}">${esc(p.name)}</option>`).join('');
     return programs;
   }
 
