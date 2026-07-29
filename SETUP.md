@@ -160,9 +160,14 @@ placeholder somebody pasted literally. Harmless, but a fair indication that the
 zone is edited by copy-paste, so send exact values and check afterwards.)
 
 The same nameservers are what the eventual cutover of the domain to this Worker
-has to go through. If the zone is ever moved somewhere the academy controls,
-copy **every** record above first — MX, SPF, DMARC and the Google verifications —
-or their email stops.
+has to go through. **`docs/DNS-CUTOVER.md` is the runbook** — the full zone as it
+stands, an ordered set of stages, how to verify their email still flows at each
+one, and how to roll back. Read it before touching the zone.
+
+The key idea there: **moving DNS and switching the website are two separate
+events.** Recreate the zone in Cloudflare *including the old server's A records*,
+switch nameservers, and nothing user-visible changes — email flows, the old site
+still loads — so it can all be verified calmly before the site flips over later.
 
 Until then the shared sender `onboarding@resend.dev` only delivers to the Resend
 account owner. `NOTIFY_EMAIL` is therefore pointed at a personal address as a
