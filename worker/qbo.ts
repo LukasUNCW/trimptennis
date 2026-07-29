@@ -26,6 +26,25 @@ function basicAuth(env: Env): string {
   return 'Basic ' + btoa(`${env.QBO_CLIENT_ID}:${env.QBO_CLIENT_SECRET}`);
 }
 
+/**
+ * Whether real Intuit credentials have been set.
+ *
+ * Both secrets EXIST but hold placeholder text, which is worse than being unset:
+ * `wrangler secret list` shows them as present, so they read as configured. Left
+ * unchecked, /qbo/connect would hand a placeholder client id to Intuit and the
+ * admin would get Intuit's own error about it, which says nothing about the
+ * actual cause. This turns that into a sentence naming the fix.
+ *
+ * Deliberately not a format check: the shape of a real Intuit client id is not
+ * something to guess at, and rejecting a valid credential would be worse than
+ * letting a wrong one through to Intuit's own validation.
+ */
+export function qboConfigured(env: Env): boolean {
+  const placeholder = /^(|todo|tbd|xxx|changeme)$/i;
+  return !placeholder.test((env.QBO_CLIENT_ID ?? '').trim())
+      && !placeholder.test((env.QBO_CLIENT_SECRET ?? '').trim());
+}
+
 /** URL the QuickBooks admin visits once to authorize the app. */
 export function buildAuthUrl(env: Env, origin: string): string {
   const params = new URLSearchParams({

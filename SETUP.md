@@ -73,7 +73,7 @@ does, none of the above matters much. Check this on the first real payment.
 | Parent accounts | Live — magic-link sign-in, profile, children, linked enrolments, enrolment history |
 | **Taking payment** | **Blocked** — no payment links exist yet |
 | Schedule page | Not built — needs a decision, see below |
-| QuickBooks read API | Not connected — `QBO_CLIENT_ID`/`SECRET` are still `TODO` |
+| QuickBooks read API | Not connected — the `QBO_*` secrets exist but hold placeholders |
 
 ## Outstanding — the office
 
@@ -336,8 +336,14 @@ call to action is invisible in code review. 20 assertions.
 | `RESEND_API_KEY` | set | resend.com → API Keys |
 | `TURNSTILE_SECRET` | set | Cloudflare → Turnstile → the "Seahawks Tennis Academy" widget |
 | `ADMIN_KEY` | set | Invented. Gates `/qbo/*`. In Lukas's password manager. |
-| `QBO_CLIENT_ID` | `TODO` | developer.intuit.com app → keys |
-| `QBO_CLIENT_SECRET` | `TODO` | same app |
+| `QBO_CLIENT_ID` | **exists, placeholder value** | developer.intuit.com app → keys |
+| `QBO_CLIENT_SECRET` | **exists, placeholder value** | same app |
+
+Careful with those last two: they are *set*, so `npx wrangler secret list` shows
+them alongside the real ones and they read as configured. They hold placeholder
+text. `/qbo/connect` and `/qbo/items` check for that and answer with a 503
+explaining it, rather than handing a fake client id to Intuit and surfacing
+Intuit's error instead.
 
 Non-secret settings (`QBO_SANDBOX`, `NOTIFY_EMAIL`, `FROM_EMAIL`, `SITE_NAME`)
 live in `wrangler.jsonc`. **Do not edit those in the Cloudflare dashboard** — the

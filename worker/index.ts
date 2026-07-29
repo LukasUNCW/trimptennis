@@ -25,7 +25,7 @@
 
 import type { Env } from './types';
 import { lookupProgram, lookupOption, listPrograms, payUrlFor } from './programs';
-import { buildAuthUrl, exchangeCodeForTokens, listItems } from './qbo';
+import { buildAuthUrl, exchangeCodeForTokens, listItems, qboConfigured } from './qbo';
 import { notifyEnrollment, notifyInquiry, sendMagicLink } from './email';
 import {
   normaliseEmail, isRateLimited, createLoginToken, redeemLoginToken,
@@ -98,6 +98,7 @@ export default {
 
       if (request.method === 'GET' && pathname === '/qbo/connect') {
         requireAdmin(url, env);
+        if (!qboConfigured(env)) return text(QBO_NOT_CONFIGURED, 503);
         return Response.redirect(buildAuthUrl(env, url.origin), 302);
       }
       if (request.method === 'GET' && pathname === '/qbo/callback') {
@@ -109,6 +110,7 @@ export default {
       }
       if (request.method === 'GET' && pathname === '/qbo/items') {
         requireAdmin(url, env);
+        if (!qboConfigured(env)) return text(QBO_NOT_CONFIGURED, 503);
         const items = await listItems(env);
         return json(items.map((i: any) => ({ id: i.Id, name: i.Name, type: i.Type })));
       }
@@ -504,6 +506,18 @@ async function handleAuthCallback(request: Request, env: Env, url: URL): Promise
     headers: { ...headers, Location: '/?signedin=1', 'Set-Cookie': sessionCookie(sid) }
   });
 }
+
+// Both QBO secrets exist but hold placeholder text, so `wrangler secret list`
+// makes them look configured. Said out loud here rather than letting Intuit
+// answer with an error about a client id nobody knew was fake.
+const QBO_NOT_CONFIGURED =
+  'QuickBooks is not connected yet.\n\n' +
+  'QBO_CLIENT_ID and QBO_CLIENT_SECRET exist as Worker secrets but hold\n' +
+  'placeholder values, so they will look set in `wrangler secret list`.\n\n' +
+  'To connect: create an app at developer.intuit.com, add this Worker\'s\n' +
+  '/qbo/callback as a redirect URI, then set both secrets with\n' +
+  '`npx wrangler secret put QBO_CLIENT_ID` and the same for the secret.\n\n' +
+  'Nothing on the site needs this — it is read-side groundwork only. See SETUP.md.';
 
 // Topics offered by the contact form's "Email to" menu. Served to the form at
 // /api/inquiry-topics and validated against here, so the two cannot drift.
