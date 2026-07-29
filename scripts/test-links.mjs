@@ -50,6 +50,25 @@ ok("trial mode asks for the child's name and age",
 ok('the trial URL serves the contact page',
    (await fetch(`${B}/contact?trial=1`)).status === 200);
 
+console.log('\n— every ?topic= link preselects a real topic —');
+// contact.html validates ?topic= against the list the Worker serves and silently
+// falls back to the first option when it does not match. So a typo in a link
+// produces no error anywhere: the visitor just lands on the wrong subject and the
+// office misroutes the message. Worth a test precisely because it fails quietly.
+const topics = await (await fetch(B + '/api/inquiry-topics')).json();
+const used = new Set();
+for (const p of PAGES) {
+  for (const m of html[p].matchAll(/href="\/contact\?topic=([^"&]+)/g)) {
+    used.add([p, decodeURIComponent(m[1])].join('|'));
+  }
+}
+ok('at least one page deep-links a topic', used.size > 0, String(used.size));
+for (const entry of used) {
+  const [page, topic] = entry.split('|');
+  ok(`${page} uses a real topic: "${topic}"`, topics.includes(topic),
+     'served topics are ' + topics.join(', '));
+}
+
 console.log('\n— nothing sells summer camp —');
 // Camp was pulled on 2026-07-29 for lack of numbers. The homepage banner used to
 // say "enrollment is live" with a Save a spot button, and /juniors listed two

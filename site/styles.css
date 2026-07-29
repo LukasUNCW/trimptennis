@@ -218,6 +218,11 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
 .enroll-done .tick{width:56px;height:56px;border-radius:50%;background:var(--teal);color:#fff;display:grid;place-items:center;font-size:27px;font-weight:700;margin:0 auto 18px}
 .enroll-done h3{font-size:21px;font-weight:800;color:var(--navy);margin-bottom:10px}
 .enroll-done p{font-size:15px;color:var(--muted);max-width:42ch;margin:0 auto 22px}
+/* The rule above uses the margin shorthand, which resets the 14px margin-top
+   .enroll-note asks for — so the small print sat directly under the pay button.
+   Restored and widened: this gap separates a primary action from fine print, and
+   it should not read as a caption belonging to the button. */
+.enroll-done .enroll-note{margin-top:26px}
 /* Review summary before the handoff to QuickBooks. Left-aligned inside the
    centred panel: label/value pairs are read down a column, not across a centre
    line, and the amount is the line that has to be unmissable. */
@@ -369,6 +374,13 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
 .prog-contact{font-size:13.5px;color:var(--muted);line-height:1.6}
 .prog-contact a{color:var(--teal);font-weight:700;text-decoration:none;word-break:break-word}
 .prog-contact a:hover{text-decoration:underline}
+/* The personal address, offered beneath the contact-form link rather than instead
+   of it. A mailto: is a dead end for anyone reading webmail with no mail client
+   configured, and these coach addresses have never been confirmed to exist —
+   whereas the form reaches the office for certain. Deliberately quieter than the
+   link above it, so the reliable route reads as the main one. */
+.prog-contact-alt{display:block;margin-top:5px;font-size:12.5px}
+.prog-contact-alt a{font-weight:600}
 
 .next-step{background:var(--teal);color:#fff;text-align:center;padding:64px 0}
 .next-step.alt{background:var(--navy)}
