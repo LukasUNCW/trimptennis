@@ -12,7 +12,8 @@
     "db:schema:local": "wrangler d1 execute trimptennis-db --local --file=./schema.sql",
     "test:account": "node scripts/test-account.mjs",
     "test:enroll": "node scripts/test-enroll-link.mjs",
-    "test:payurl": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/test-payurl.mjs"
+    "test:payurl": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/test-payurl.mjs",
+    "test:links": "node scripts/test-links.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260722.1",

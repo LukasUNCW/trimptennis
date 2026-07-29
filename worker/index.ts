@@ -547,7 +547,11 @@ async function handleInquiry(request: Request, env: Env, ctx: ExecutionContext):
     message: str(body.message, 2000),
     email_to: topic && INQUIRY_TOPICS.includes(topic) ? topic : null,
     zip: str(body.zip, 20),
-    contact_preference: kind === 'contact' ? pref : null
+    // Kept for a free trial as well as a contact message. It used to be stored
+    // only for 'contact', so a parent claiming a trial could ask to be phoned and
+    // the office would never see it — and the "asked for a call but left no
+    // number" check below could not fire either.
+    contact_preference: pref
   };
 
   // Asking to be phoned back without leaving a number would strand the office.

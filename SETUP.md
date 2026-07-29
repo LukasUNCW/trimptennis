@@ -301,6 +301,7 @@ npx wrangler d1 execute trimptennis-db --remote --command "DELETE FROM sessions 
 npm run test:account
 npm run test:enroll
 npm run test:payurl
+npm run test:links
 ```
 
 `test:payurl` is offline — no deploy, no database, no secrets. It checks the
@@ -317,7 +318,14 @@ children, that a parent's enrolment history contains their rows and nobody
 else's, that a row written before price options existed still reads back, and
 that removing a player detaches its enrolments instead of deleting them.
 
-83 assertions across all three.
+`test:links` fetches the deployed pages and checks that no `<a class="btn">`
+points at `href="#"`, that the free-trial form is reachable, and that the footers
+agree with each other. It exists because the homepage advertised a free trial in
+two places and **both were dead links** for as long as the site had been live,
+while the Worker supported free-trial requests the whole time. A dead primary
+call to action is invisible in code review. 20 assertions.
+
+103 assertions across all four.
 
 ## Reference
 
@@ -354,6 +362,22 @@ host, so the forms keep working at domain cutover.
 | `POST`/`PATCH`/`DELETE /api/children[/:id]` | Manage saved players |
 | `GET /api/enrollments` | The signed-in parent's own enrolment history |
 | `GET /qbo/connect`, `/qbo/callback`, `/qbo/items` | One-time QuickBooks OAuth, `?key=ADMIN_KEY` |
+
+### The free trial
+
+`/contact?trial=1` is the contact page reshaped, not a second page: it asks for
+the child's first name and age instead of a department, makes the message
+optional, and posts `kind: 'free_trial'` so the office can tell a trial request
+apart from a general enquiry. Both homepage trial CTAs point at it.
+
+One form rather than two because a second form would mean a second Turnstile
+widget, a second set of validation, and two places to fix anything. The
+`inquiries` table already had `player_name` and `age_group` columns for exactly
+this — the server side was built and never reached.
+
+`contact_preference` is now stored for a free trial as well as a contact message.
+It used to be kept only for `'contact'`, so a parent could ask to be phoned about
+a trial and the office would never see it.
 
 All forms are Turnstile-gated. `/account` is gated server-side, which needs
 `assets.run_worker_first` in `wrangler.jsonc` — without it Cloudflare serves the
