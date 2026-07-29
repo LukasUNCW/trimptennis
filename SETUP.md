@@ -56,9 +56,21 @@ $330, $35, $350, $320, $420, $45. One amount means exactly one option, so a
 nameless payment is still identifiable. `npm run check:programs` warns if two
 options ever share a price. Keep it that way when Adult gets priced.
 
-**Not yet confirmed:** whether a multi-use link still records the payer's name
-and email that they type at checkout, even with the Customer field blank. If it
-does, none of the above matters much. Check this on the first real payment.
+**Where the office finds a payment.** A payment-link payment posts as a **sales
+receipt**, so: *Sales → All Sales* (or *Transactions → All sales* in newer
+QuickBooks Online), filtered to Sales Receipts.
+
+**Probably better than the above suggests.** Intuit's community documentation says
+that for a multi-use link the Customer field reads "not specified" *but the payer's
+name appears in the sales receipt's description*. If that holds, the office is not
+reconciling by amount alone — the name is there, just not in the column anyone
+would naturally scan. That turns this from a design problem into a training note.
+
+**Still to confirm** on the first real payment: whether the description really does
+carry the name and email. Katie offered to run a $35 test on the Shredder's
+drop-in link with the academy's own card on 2026-07-29. **Record the answer here
+when it comes back**, because everything above about matching payments by amount
+depends on it.
 
 ## Current status
 
