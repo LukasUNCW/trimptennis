@@ -92,16 +92,16 @@ export const PROGRAMS: Record<string, Program> = {
     name: "Grom's",
     ageGroups: ['6-12'],
     options: [
-      { id: 'standard', label: '10 classes', price: 250, payUrl: null }
+      { id: 'standard', label: '10 classes', price: 250, payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-f4a24dfac7ce46a48793ebfee81826cfc1ac205d73b24e6a9343cae86897f2354c4e880a9ebb416c83487747896e4795?locale=EN_US&cta=saveandcopylink' }
     ]
   },
   shredders: {
     name: "Shredder's",
     ageGroups: ['9-16'],
     options: [
-      { id: '8x-month',  label: '8 classes / month',  price: 240, payUrl: null },
-      { id: '12x-month', label: '12 classes / month', price: 330, payUrl: null },
-      { id: 'drop-in',   label: 'Drop-in',            price: 35,  payUrl: null }
+      { id: '8x-month',  label: '8 classes / month',  price: 240, payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-dcab8ea1fc914441bc783968ec6ccf8c77b53ad8572e49fb92b68d424252da275f077e97801844e59829101c8bb46d68?locale=EN_US&cta=saveandcopylink' },
+      { id: '12x-month', label: '12 classes / month', price: 330, payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-f77d0594914a48d7b316e2425349ffd1578d6d1f29d4499682a59460e283f2610d0186ab339f449f87dfe80b23be787f?locale=EN_US&cta=saveandcopylink' },
+      { id: 'drop-in',   label: 'Drop-in',            price: 35,  payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-f4e0fc27cd224867b0a60db0fe508ccf508514924d6d41419a55a1701e85e8e908bb400938514a7d98ee178af374f1aa?locale=EN_US&cta=saveandcopylink' }
     ]
   },
   'summer-camp': {
@@ -127,10 +127,12 @@ export const PROGRAMS: Record<string, Program> = {
     name: 'Elite Academy',
     ageGroups: ['10-18'],
     options: [
-      { id: '8x-month',  label: '8 classes / month — first month',  price: 320, payUrl: null, autoDraftAfterFirstMonth: true },
-      { id: '12x-month', label: '12 classes / month — first month', price: 420, payUrl: null, autoDraftAfterFirstMonth: true },
+      { id: '8x-month',  label: '8 classes / month — first month',  price: 320, payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-a83e0d0de2e74102a72ff6b102f4e0be98873bb9b0084ffeb89db13d5622b587d007dc7ac227490d9ec8fa204332d7a4?locale=EN_US&cta=saveandcopylink', autoDraftAfterFirstMonth: true },
+      { id: '12x-month', label: '12 classes / month — first month', price: 420, payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-a7aa5450e4d24b0bbd2c1d1817e2c725747ffa4501a54ec4bca5c74414de2ee39611db4b5dde4978bee4130cce76a79f?locale=EN_US&cta=saveandcopylink', autoDraftAfterFirstMonth: true },
       // Deliberately no auto-draft follow-up: a drop-in is not a first month.
-      { id: 'drop-in',   label: 'Drop-in',                          price: 45,  payUrl: null }
+      // Katie: "a stand alone thing... when they know they are coming to class
+      // they can click on the link and pay".
+      { id: 'drop-in',   label: 'Drop-in',                          price: 45,  payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-be458f88c1044b83b925d399e6157c4acebbf77ba93f47bca9d63610b1d0424824671f08db714caa8a9bb7e8f4827625?locale=EN_US&cta=saveandcopylink' }
     ]
   },
   adult: {

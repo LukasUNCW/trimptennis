@@ -71,7 +71,7 @@ does, none of the above matters much. Check this on the first real payment.
 | Turnstile | **Real widget**, both forms protected |
 | Email (Resend) | Working, but see the domain caveat below |
 | Parent accounts | Live — magic-link sign-in, profile, children, linked enrolments, enrolment history |
-| **Taking payment** | **Blocked** — no payment links exist yet |
+| **Taking payment** | **Live** — 7 links installed 2026-07-29, verified by `npm run check:prices` |
 | Schedule page | Not built — needs a decision, see below |
 | QuickBooks read API | Not connected — the `QBO_*` secrets exist but hold placeholders |
 
@@ -85,8 +85,9 @@ Intuit's consent screen. Nothing in that list requires her password leaving her:
 the developer app should be created under **our** Intuit developer account so the
 client id and secret are ours, and she only ever authorizes.
 
-**2. Create nine payment links** — one per price option, all **multi-use**. Katie
-confirmed this list on 2026-07-29:
+**2. ~~Create the payment links~~ — DONE.** Katie sent seven on 2026-07-29 and they
+are installed and verified. All on `connect.intuit.com`. The two still missing are
+Summer Camp (dropped, see below) and Adult (unpriced). The list as confirmed:
 
 | Option | Price |
 |---|---|
@@ -241,10 +242,29 @@ option's price, e.g. $330 for a $35 drop-in. Run it on its own any time:
 npm run check:programs
 ```
 
-Two things it cannot tell you, and one hole:
+### Check the links actually charge the right amounts
 
-- Whether the link charges the right **amount**, or is even the right program.
-  Only opening it can answer that — hence the checklist below.
+```powershell
+npm run check:prices
+```
+
+Opens every live payment link and checks the page charges what the catalog says
+and names the right program. This was believed impossible to automate — the site
+shows `price` from `worker/programs.ts` while QuickBooks charges whatever is
+inside the link — but Intuit renders both the amount and the item name into the
+page HTML, so both are verifiable. It catches the two mistakes that cost real
+money: a link built for the wrong amount, and a link pasted onto the wrong option.
+
+A GET on a payment page charges nothing; it is what a parent's browser does on
+arrival. **Not** wired into `npm run deploy`, deliberately — it depends on Intuit
+being reachable and a network blip must not block a deploy. Run it whenever a link
+changes.
+
+One thing it cannot tell you, and one hole:
+
+- Whether the item's own **description** in QuickBooks makes sense to a parent, or
+  whether an Elite membership link really is set up as a first month rather than a
+  recurring subscription. Opening one is still worth doing once.
 - Whether the host is right. Intuit lets the link's URL be customised, so there
   is no domain to match on. An unfamiliar host is a **warning, not an error**:
   guessing wrong and blocking a real link would be worse than the mistake. Once
