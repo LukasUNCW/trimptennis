@@ -122,6 +122,23 @@
     return t ? t[0].toUpperCase() + t.slice(1) : 'Status unknown';
   };
 
+  /**
+   * Which package was bought, e.g. "8 classes / month · $240". Several programs
+   * sell more than one, so without this two Shredder's enrolments render as
+   * identical rows.
+   *
+   * The row stores the option *id*; the readable label lives in /api/programs, so
+   * it is resolved through the catalog and falls back to the raw id if the option
+   * has since been renamed or removed — a historic row must still say something.
+   */
+  function packageLabel(r) {
+    const prog = programs.find((p) => p.name === r.program);
+    const opt = (prog?.options ?? []).find((o) => o.id === r.price_option);
+    const label = opt?.label ?? r.price_option ?? '';
+    const price = typeof r.price_quoted === 'number' ? `$${r.price_quoted}` : '';
+    return [label, price].filter(Boolean).join(' · ');
+  }
+
   // D1 writes created_at as datetime('now') — "2026-07-28 13:24:11", UTC with
   // nothing to say so. Browsers read that shape as LOCAL time, which moves the
   // date across midnight for anyone west of UTC, so the zone is made explicit
@@ -147,10 +164,11 @@
       // player_name is only ever missing on a row typed in by hand, but the
       // list should not render a nameless bullet if that happens.
       const who = r.player_name || 'Player not recorded';
+      const pkg = packageLabel(r);
       return `
       <li class="enrol-row">
         <div class="enrol-main">
-          <b>${esc(r.program)}</b>
+          <b>${esc(r.program)}${pkg ? ` <span class="enrol-pkg">${esc(pkg)}</span>` : ''}</b>
           <span class="enrol-meta">${esc(who)}${r.age_group ? ' · ' + esc(r.age_group) : ''}</span>
         </div>
         <span class="enrol-date">${esc(fmtDate(r.created_at))}</span>
@@ -167,7 +185,10 @@
   async function loadHistory() {
     try {
       clearErr($('histErr'));
-      const data = await api('/api/enrollments');
+      // The catalog is needed to turn a stored option id into a readable label,
+      // and both loads start together — so wait for it rather than rendering the
+      // raw id on first paint and only looking right after a refresh.
+      const [data] = await Promise.all([api('/api/enrollments'), programsReady]);
       renderEnrollments(data.enrollments ?? []);
     } catch (err) {
       if (err.message !== 'signed out') {
@@ -186,13 +207,20 @@
 
   // ── load ───────────────────────────────────────────────────────────────
 
+  // One shared fetch: both the eligibility line and the enrolment history need
+  // the catalog, and they load in parallel, so neither should fetch it twice.
+  const programsReady = fetch('/api/programs')
+    .then((r) => r.json())
+    .catch(() => [])
+    .then((list) => { programs = list; return list; });
+
   (async () => {
     // Not awaited: the history is independent of the profile, and waiting for
     // one before starting the other only makes the page slower.
     loadHistory();
     try {
       // Programmes first so the eligibility line is present on first paint.
-      programs = await fetch('/api/programs').then((r) => r.json()).catch(() => []);
+      await programsReady;
       render(await api('/api/me'));
     } catch (err) {
       if (err.message !== 'signed out') {

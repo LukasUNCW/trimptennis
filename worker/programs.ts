@@ -1,28 +1,63 @@
 // worker/programs.ts
-// Program catalog — the single place that knows what's enrollable and where to
-// send a parent to pay.
+// Program catalog — the single place that knows what's enrollable, what it
+// costs, and where to send a parent to pay.
 //
-// payUrl is a QuickBooks payment link. Katie creates one per program inside
-// QuickBooks (Sales → Payment links) and pastes the URL here; payments then
-// record natively in QuickBooks with no integration to maintain.
+// A QuickBooks payment link carries its amount INSIDE the link, so this site
+// cannot tell QuickBooks what to charge. That one fact drives the shape of this
+// file: a program with three prices needs three links, so links hang off price
+// options rather than off programs. Katie creates one multi-use link per option
+// in QuickBooks (All apps → Sales & Get Paid → Payment links) and pastes the
+// URL here.
 //
-// A program with payUrl === null is not yet purchasable: /api/enroll still
-// saves the enrollment and notifies the office, but the site shows a
-// "we'll call you to take payment" path instead of redirecting.
+// The links must be MULTI-USE. A single-use link stops working after the first
+// parent pays it, and every parent enrolling in a program is sent to the same
+// URL.
+//
+// An option with payUrl === null is not yet purchasable: /api/enroll still saves
+// the enrollment and notifies the office, but the site shows a "we'll call you
+// to take payment" path instead of redirecting.
+
+export interface PriceOption {
+  /**
+   * Submitted by the form and stored on the enrollment row, so it must stay
+   * stable — changing an id orphans the meaning of rows already written.
+   */
+  id: string;
+  /** Customer-facing, shown in the enrol dialog next to the price. */
+  label: string;
+  /**
+   * Whole dollars, for DISPLAY only.
+   *
+   * QuickBooks is authoritative: the real amount is whatever the payment link
+   * charges, and nothing here can verify it. So a link created for the wrong
+   * amount shows the right price on the site and charges a different one, and no
+   * automated check will catch it — only a human opening the link. That is why
+   * SETUP.md's checklist says to read the amount off the QuickBooks page.
+   *
+   * null means "not priced yet" — the page says to ask the office.
+   */
+  price: number | null;
+  /** QuickBooks multi-use payment link, or null until Katie creates it. */
+  payUrl: string | null;
+  /**
+   * This option buys the FIRST MONTH of a membership; the office sets up auto
+   * draft in QuickBooks afterwards, so the enrollment email has to say so or the
+   * follow-up gets forgotten.
+   *
+   * Lives on the option rather than the program because Elite sells both
+   * memberships and drop-ins: a drop-in is a one-off, and telling that player to
+   * expect an auto draft would be wrong.
+   */
+  autoDraftAfterFirstMonth?: boolean;
+}
 
 export interface Program {
   /** Customer-facing name; also what we store on the enrollment row. */
   name: string;
   /** Valid age_group values for this program. */
   ageGroups: string[];
-  /** QuickBooks payment link, or null until Katie creates it. */
-  payUrl: string | null;
-  /**
-   * Elite Academy: the payment link covers the FIRST MONTH only. The office
-   * sets up auto draft in QuickBooks once the player has attended a month, so
-   * the enrollment email has to say so or the follow-up gets forgotten.
-   */
-  autoDraftAfterFirstMonth?: boolean;
+  /** At least one. A program with a single option needs no choice from the parent. */
+  options: PriceOption[];
   /**
    * Adult programs: the person signing up IS the player, so no guardian is
    * collected and the form asks for their own name. parent_name stays null on
@@ -34,39 +69,61 @@ export interface Program {
 // Age ranges match the academy's own programme pages, which overlap
 // deliberately: a 10-year-old could be in either Grom's or Shredder's depending
 // on whether they can rally and keep score.
+//
+// Prices are Katie's list of 2026-07-29. Every amount is deliberately DISTINCT:
+// multi-use payment links record no customer, so at month end the amount is the
+// office's main clue about what a payment was for, and two options sharing a
+// price would be indistinguishable. Keep it that way when Adult gets priced.
 export const PROGRAMS: Record<string, Program> = {
   groms: {
     name: "Grom's",
     ageGroups: ['6-12'],
-    payUrl: null
+    options: [
+      { id: 'standard', label: '10 classes', price: 250, payUrl: null }
+    ]
   },
   shredders: {
     name: "Shredder's",
     ageGroups: ['9-16'],
-    payUrl: null
+    options: [
+      { id: '8x-month',  label: '8 classes / month',  price: 240, payUrl: null },
+      { id: '12x-month', label: '12 classes / month', price: 330, payUrl: null },
+      { id: 'drop-in',   label: 'Drop-in',            price: 35,  payUrl: null }
+    ]
   },
   'summer-camp': {
     name: 'Summer Morning Camp',
-    // Camp takes 7-18, which is wider at the top than either clinic and starts
-    // a year later at the bottom. Both ends had to be fixed: without '13-18' a
-    // 16- or 17-year-old had no group to choose and /api/enroll rejected them,
-    // and borrowing Grom's '6-12' let a 6-year-old sign up for a camp that
-    // starts at 7. Bands are per-program, so '7-12' here leaves Grom's alone.
-    // NEEDS CONFIRMING with the office — these are the bands they read off
-    // enrolment rows, and they may split camp differently.
+    // Camp takes 7-18, wider at the top than either clinic and starting a year
+    // later at the bottom. Both ends had to be handled: without '13-18' a 16- or
+    // 17-year-old had no group to choose and /api/enroll rejected them, and
+    // borrowing Grom's '6-12' let a 6-year-old sign up for a camp starting at 7.
+    // NEEDS CONFIRMING with the office — these are the bands they read off rows.
     ageGroups: ['7-12', '9-16', '13-18'],
-    payUrl: null
+    options: [
+      // $350 is what the academy's own camp page publishes for a 5-day week; the
+      // shorter 4-day week was $300 and has already run. AWAITING CONFIRMATION.
+      { id: 'week', label: '5-day week', price: 350, payUrl: null }
+    ]
   },
   elite: {
     name: 'Elite Academy',
     ageGroups: ['10-18'],
-    payUrl: null, // one month of membership
-    autoDraftAfterFirstMonth: true
+    options: [
+      { id: '8x-month',  label: '8 classes / month — first month',  price: 320, payUrl: null, autoDraftAfterFirstMonth: true },
+      { id: '12x-month', label: '12 classes / month — first month', price: 420, payUrl: null, autoDraftAfterFirstMonth: true },
+      // Deliberately no auto-draft follow-up: a drop-in is not a first month.
+      { id: 'drop-in',   label: 'Drop-in',                          price: 45,  payUrl: null }
+    ]
   },
   adult: {
     name: 'Adult Programs',
     ageGroups: ['Adult'],
-    payUrl: null,
+    // Unpriced: the academy's old site publishes no adult rates, so /adults says
+    // to ask. price stays null until Katie sets one, and the option exists so
+    // adults can still enrol and be followed up by phone.
+    options: [
+      { id: 'standard', label: 'Adult programs', price: null, payUrl: null }
+    ],
     selfEnroll: true
   }
 };
@@ -74,18 +131,35 @@ export const PROGRAMS: Record<string, Program> = {
 export const lookupProgram = (slug: unknown): Program | null =>
   typeof slug === 'string' && Object.hasOwn(PROGRAMS, slug) ? PROGRAMS[slug] : null;
 
+/**
+ * Resolves the option a request asked for.
+ *
+ * A program with exactly one option needs no choice, so an absent id resolves to
+ * it — that keeps a single-price program working without the form having to send
+ * anything. Where there is a real choice, an absent or unknown id is an error
+ * rather than a guess: picking a price on the parent's behalf could charge them
+ * $330 when they wanted $35.
+ */
+export function lookupOption(program: Program, id: unknown): PriceOption | null {
+  if (id === undefined || id === null || id === '') {
+    return program.options.length === 1 ? program.options[0] : null;
+  }
+  return typeof id === 'string' ? program.options.find((o) => o.id === id) ?? null : null;
+}
+
 // ── checking a pasted payUrl ──────────────────────────────────────────────
 //
-// These five links are created by hand in QuickBooks and pasted into the file
-// above, and every plausible slip is silent: a link pasted with the quotes still
-// attached, a dashboard URL copied instead of a payment link, or — the expensive
-// one — the same link pasted onto two programs, so a parent enrolling for Grom's
-// is charged Elite's price. Nothing downstream would notice; the enrolment row
-// would look perfect and QuickBooks would show a payment for the wrong thing.
+// These links are created by hand in QuickBooks and pasted into the catalog
+// above, and every plausible slip is silent. Quotes left attached, a dashboard
+// URL copied instead of a payment link, http instead of https — and the
+// expensive one, the same link pasted onto two options, so a parent buying a $35
+// drop-in is charged $330 for a month. Nothing downstream would notice; the
+// enrollment row looks perfect and QuickBooks shows a payment for the wrong
+// thing.
 //
-// So a payUrl is checked rather than trusted, in two places for two reasons:
-// `npm run check:programs` catches it before a deploy, and the enrol route
-// re-checks at runtime because Cloudflare's Git integration runs `wrangler
+// Checked in two places because there are two ways to deploy:
+// `npm run check:programs`, which `npm run deploy` runs first, and the enrol
+// route at request time — because Cloudflare's Git integration runs `wrangler
 // deploy` directly and never runs that script.
 
 /**
@@ -124,18 +198,20 @@ export function payUrlError(raw: unknown): string | null {
 }
 
 /**
- * The catalog's own mistake: one link serving two programs. Takes the catalog as
- * an argument rather than closing over PROGRAMS so it can be checked against a
- * fabricated one — the real catalog has every link empty today, so a duplicate
- * is not reproducible from it.
+ * payUrls appearing on more than one option, anywhere in the catalog. Takes the
+ * catalog as an argument rather than closing over PROGRAMS so it can be checked
+ * against a fabricated one — every real link is null today, so a duplicate is
+ * not reproducible from the real catalog.
  */
 export function findDuplicatePayUrls(programs: Record<string, Program>): Set<string> {
   const seen = new Set<string>();
   const dupes = new Set<string>();
   for (const p of Object.values(programs)) {
-    if (p.payUrl === null) continue;
-    if (seen.has(p.payUrl)) dupes.add(p.payUrl);
-    seen.add(p.payUrl);
+    for (const o of p.options ?? []) {
+      if (o.payUrl === null) continue;
+      if (seen.has(o.payUrl)) dupes.add(o.payUrl);
+      seen.add(o.payUrl);
+    }
   }
   return dupes;
 }
@@ -144,47 +220,47 @@ export function findDuplicatePayUrls(programs: Record<string, Program>): Set<str
 const DUPLICATE_PAY_URLS: ReadonlySet<string> = findDuplicatePayUrls(PROGRAMS);
 
 /**
- * Why this program's link cannot be used, or null when it can.
- * A null payUrl is not a problem — it is a program the office has not set up
+ * Why this option's link cannot be used, or null when it can.
+ * A null payUrl is not a problem — it is an option the office has not set up
  * yet, which the site already handles.
  */
-export function payUrlProblem(p: Program): string | null {
-  if (p.payUrl === null) return null;
-  return payUrlError(p.payUrl)
-    ?? (DUPLICATE_PAY_URLS.has(p.payUrl) ? 'is also used by another program' : null);
+export function payUrlProblem(o: PriceOption): string | null {
+  if (o.payUrl === null) return null;
+  return payUrlError(o.payUrl)
+    ?? (DUPLICATE_PAY_URLS.has(o.payUrl) ? 'is also used by another option' : null);
 }
 
-/** True when a parent can actually be sent somewhere to pay for this program. */
-export const isPayable = (p: Program): boolean =>
-  p.payUrl !== null && payUrlProblem(p) === null;
+/** True when a parent can actually be sent somewhere to pay for this option. */
+export const isPayable = (o: PriceOption): boolean =>
+  o.payUrl !== null && payUrlProblem(o) === null;
 
 /** True when the host is not one payment links are expected on — advisory only. */
-export const hasUnexpectedPayHost = (p: Program): boolean => {
-  if (p.payUrl === null || payUrlError(p.payUrl)) return false;
-  try { return !KNOWN_PAY_HOST.test(new URL(p.payUrl).hostname); } catch { return false; }
+export const hasUnexpectedPayHost = (o: PriceOption): boolean => {
+  if (o.payUrl === null || payUrlError(o.payUrl)) return false;
+  try { return !KNOWN_PAY_HOST.test(new URL(o.payUrl).hostname); } catch { return false; }
 };
 
 /**
  * The link to hand a parent, or null. A broken link is treated exactly like a
- * missing one: the enrolment is still saved and the office still emailed, and
+ * missing one: the enrollment is still saved and the office still emailed, and
  * the parent sees "we'll follow up" instead of being redirected to whatever got
  * pasted. Failing this way round means a typo costs a phone call, not a payment
- * taken for the wrong program.
+ * taken for the wrong amount.
  */
-export function payUrlFor(p: Program): string | null {
-  const problem = payUrlProblem(p);
+export function payUrlFor(program: Program, o: PriceOption): string | null {
+  const problem = payUrlProblem(o);
   if (problem) {
     console.error(
-      `payUrl for "${p.name}" ${problem} — treating it as not yet payable. ` +
-      'Fix worker/programs.ts, run `npm run check:programs`, and redeploy.'
+      `payUrl for "${program.name} — ${o.label}" ${problem} — treating it as not ` +
+      'yet payable. Fix worker/programs.ts, run `npm run check:programs`, and redeploy.'
     );
     return null;
   }
-  return p.payUrl;
+  return o.payUrl;
 }
 
 /**
- * Public catalog for the enrollment form. The form builds its program and
+ * Public catalog for the enrollment form. The form builds its program, option and
  * age-group menus from this, so the values it submits always match what
  * /api/enroll validates against — no duplicated list in the HTML to drift.
  * payUrl is deliberately withheld: it is only needed in the POST response.
@@ -194,8 +270,15 @@ export const listPrograms = () =>
     slug,
     name: p.name,
     ageGroups: p.ageGroups,
-    // isPayable rather than a null check, so the dialog's copy matches what the
-    // enrol route will actually do with a link that turns out to be unusable.
-    payable: isPayable(p),
-    selfEnroll: p.selfEnroll === true
+    selfEnroll: p.selfEnroll === true,
+    options: p.options.map((o) => ({
+      id: o.id,
+      label: o.label,
+      price: o.price,
+      // isPayable rather than a null check, so the dialog cannot offer payment
+      // the enrol route will then refuse to deliver.
+      payable: isPayable(o)
+    })),
+    /** True when at least one option can take money — drives the dialog's copy. */
+    payable: p.options.some(isPayable)
   }));

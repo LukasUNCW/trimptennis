@@ -27,6 +27,15 @@
         <select id="ef-program" name="program" required></select>
       </div>
 
+      <!-- Only shown when the program sells more than one price. A program with
+           a single option needs no decision, and an unnecessary menu invites a
+           wrong answer. -->
+      <div class="field" id="ef-option-wrap" hidden>
+        <label for="ef-option">Which option? <span class="req">*</span></label>
+        <select id="ef-option" name="option" required></select>
+        <p class="field-note" id="ef-option-note"></p>
+      </div>
+
       <div class="field" id="ef-saved-wrap" hidden>
         <label for="ef-saved">Who is playing?</label>
         <select id="ef-saved"></select>
@@ -99,6 +108,9 @@
   const playerLabel = document.getElementById('ef-player-label');
   const savedWrap   = document.getElementById('ef-saved-wrap');
   const savedSel    = document.getElementById('ef-saved');
+  const optionWrap  = document.getElementById('ef-option-wrap');
+  const optionSel   = document.getElementById('ef-option');
+  const optionNote  = document.getElementById('ef-option-note');
 
   let programs = null;   // catalog from /api/programs, fetched once
   let widgetId = null;   // Turnstile widget handle, so we can reset it
@@ -118,12 +130,42 @@
     return programs;
   }
 
+  const money = (price) => (typeof price === 'number' ? `$${price}` : 'price on request');
+
+  /**
+   * Price options are per-program, so they refill with the age groups. Hidden
+   * entirely for a single-option program: there is nothing to decide, and the
+   * price still reaches the parent on the QuickBooks page.
+   *
+   * The amount shown here is what the catalog says. QuickBooks charges whatever
+   * its link says — see the note on PriceOption.price in worker/programs.ts.
+   */
+  function syncOptions(p) {
+    const options = p?.options ?? [];
+    const choose = options.length > 1;
+    optionWrap.hidden = !choose;
+    optionSel.required = choose;
+
+    if (!choose) {
+      optionSel.innerHTML = '';
+      optionNote.textContent = '';
+      return;
+    }
+    optionSel.innerHTML =
+      '<option value="">Choose an option…</option>' +
+      options.map((o) => `<option value="${o.id}">${o.label} — ${money(o.price)}</option>`).join('');
+    optionNote.textContent = options.every((o) => !o.payable)
+      ? 'The office will confirm the price and take payment by phone.'
+      : '';
+  }
+
   // Age groups are per-program, so they refill whenever the program changes.
   // Adult programs also drop the guardian field entirely — the person signing
   // up is the player, so asking for a parent makes no sense there.
   function syncAgeGroups() {
     const p = programs?.find((x) => x.slug === progSel.value);
     const groups = p?.ageGroups ?? [];
+    syncOptions(p);
     ageSel.innerHTML = groups.length
       ? groups.map((g) => `<option value="${g}">${g}</option>`).join('')
       : '<option value="">Choose a program first</option>';
@@ -286,6 +328,9 @@
 
     const body = {
       program:      progSel.value,
+      // Omitted for a single-option program; the Worker resolves it to the only
+      // option rather than requiring the form to know that.
+      option:       optionWrap.hidden ? undefined : optionSel.value,
       // present only for a saved player; the Worker then takes the name from
       // the stored record and ignores player_name below
       child_id:     (savedWrap.hidden || !savedSel.value) ? undefined : savedSel.value,
@@ -300,6 +345,8 @@
     const selfEnroll = programs?.find((p) => p.slug === body.program)?.selfEnroll === true;
 
     if (!body.program)                    return showErr('Please choose a program.');
+    if (!optionWrap.hidden && !optionSel.value)
+                                          return showErr('Please choose which option you want.');
     if (!body.player_name.trim())         return showErr(selfEnroll ? 'Please enter your name.' : "Please enter the player's name.");
     if (!body.age_group)                  return showErr('Please choose an age group.');
     if (!selfEnroll && !body.parent_name.trim())

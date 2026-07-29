@@ -24,7 +24,7 @@
 // group) because that is the part QuickBooks does not track.
 
 import type { Env } from './types';
-import { lookupProgram, listPrograms, payUrlFor } from './programs';
+import { lookupProgram, lookupOption, listPrograms, payUrlFor } from './programs';
 import { buildAuthUrl, exchangeCodeForTokens, listItems } from './qbo';
 import { notifyEnrollment, notifyInquiry, sendMagicLink } from './email';
 import {
@@ -139,6 +139,16 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
   const program = lookupProgram(body.program);
   if (!program) return json({ error: 'Unknown program.' }, 400);
 
+  // Which price the parent chose. Where a program sells more than one, this is
+  // required rather than guessed: defaulting would risk charging $330 for a
+  // month to somebody who wanted a $35 drop-in.
+  const option = lookupOption(program, body.option);
+  if (!option) {
+    return json({
+      error: `Choose an option: ${program.options.map((o) => o.label).join(', ')}`
+    }, 400);
+  }
+
   // Signing in is optional. A guest enrolment is a first-class path — both
   // account_id and child_id simply stay NULL.
   const user = await getSessionUser(env, request);
@@ -190,34 +200,44 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
     payment_status: 'awaiting_payment',
     notes: str(body.notes, 2000),
     account_id: user?.account_id ?? null,
-    child_id
+    child_id,
+    // Which package was bought. The id is stored rather than the label so the
+    // office's reporting does not break when wording is reworded; the amount is
+    // stored because prices change and the roster should record what this parent
+    // was actually shown — which is also how a payment gets matched back, since
+    // a multi-use QuickBooks link records no customer name.
+    price_option: option.id,
+    price_quoted: option.price
   };
 
   await env.DB
     .prepare(
       `INSERT INTO enrollments
        (id, parent_name, parent_email, phone, player_name, age_group, program,
-        payment_status, notes, account_id, child_id)
-       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)`
+        payment_status, notes, account_id, child_id, price_option, price_quoted)
+       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)`
     )
     .bind(row.id, row.parent_name, row.parent_email, row.phone, row.player_name,
           row.age_group, row.program, row.payment_status, row.notes,
-          row.account_id, row.child_id)
+          row.account_id, row.child_id, row.price_option, row.price_quoted)
     .run();
 
   ctx.waitUntil(notifyEnrollment(env, {
     ...row,
-    autoDraftFollowUp: program.autoDraftAfterFirstMonth === true
+    optionLabel: option.label,
+    // Set per option, not per program: Elite sells memberships AND drop-ins, and
+    // telling a drop-in player to expect an auto draft would be wrong.
+    autoDraftFollowUp: option.autoDraftAfterFirstMonth === true
   }));
 
   return json({
     ok: true,
     enrollmentId: row.id,
-    // null until Katie has created this program's payment link — the site then
+    // null until Katie has created this option's payment link — the site then
     // shows a "the office will follow up" confirmation instead of redirecting.
     // Also null if the pasted link does not survive checking, which is the same
     // situation from the parent's side and logs loudly for us. See payUrlFor.
-    payUrl: payUrlFor(program)
+    payUrl: payUrlFor(program, option)
   });
 }
 
@@ -426,7 +446,8 @@ async function handleGetEnrollments(request: Request, env: Env): Promise<Respons
   // stable across reloads instead of shuffling.
   const rows = await env.DB
     .prepare(
-      `SELECT created_at, program, player_name, age_group, payment_status
+      `SELECT created_at, program, player_name, age_group, payment_status,
+              price_option, price_quoted
        FROM enrollments
        WHERE account_id = ?1 OR lower(parent_email) = ?2
        ORDER BY created_at DESC, rowid DESC

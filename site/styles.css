@@ -464,6 +464,9 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
   border:1px solid var(--line);border-radius:10px;padding:13px 16px;background:var(--sand)}
 .enrol-main{display:grid;gap:2px;min-width:0}
 .enrol-main b{font-size:15.5px;color:var(--navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Which package was bought, alongside the program name — several programs sell
+   more than one, so without it two Shredder's rows look identical. */
+.enrol-pkg{font-weight:600;font-size:13px;color:var(--muted)}
 .enrol-meta{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .enrol-date{font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}
 .enrol-status{font-family:var(--font-mono);font-size:11px;font-weight:600;letter-spacing:.08em;

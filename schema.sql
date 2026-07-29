@@ -28,7 +28,18 @@ CREATE TABLE IF NOT EXISTS enrollments (
   -- guest enrolments, which remain supported on purpose: requiring an account
   -- before payment would cost real signups.
   account_id TEXT REFERENCES accounts(id),
-  child_id TEXT REFERENCES children(id)
+  child_id TEXT REFERENCES children(id),
+  -- Which price option was bought, e.g. '8x-month' or 'drop-in'. Several
+  -- programs sell more than one, so the program name alone does not say what
+  -- somebody signed up for. The id is stored rather than the label so reporting
+  -- survives a rewording. NULL on rows written before options existed.
+  price_option TEXT,
+  -- Whole dollars, as displayed to this parent at the time. Prices change, and
+  -- QuickBooks is authoritative for what was actually charged — this records
+  -- what we quoted. It is also how a payment is matched back to a person: a
+  -- multi-use QuickBooks payment link records no customer name, so the amount is
+  -- the strongest signal the office has.
+  price_quoted INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_enrollments_account ON enrollments (account_id);
 

@@ -76,13 +76,24 @@ export async function notifyEnrollment(env: Env, e: {
   parent_name: string | null; parent_email: string | null; phone: string | null;
   player_name: string | null; age_group: string | null;
   program: string; payment_status: string; notes: string | null;
-  /** Elite Academy — the payment link covered month one only. */
+  /** Which price option was bought, e.g. "8 classes / month". */
+  optionLabel?: string | null;
+  /** Whole dollars as shown to the parent, or null when the option is unpriced. */
+  price_quoted?: number | null;
+  /** A first month of membership — auto draft has to be set up afterwards. */
   autoDraftFollowUp?: boolean;
 }): Promise<void> {
-  await send(env, `New enrollment: ${e.player_name ?? e.parent_name ?? 'Unknown'} — ${e.program}`, `
+  // The amount goes in the subject line because a multi-use QuickBooks payment
+  // link records no customer name: when the office reconciles, the amount is
+  // what ties a payment back to a person, so it needs to be findable by search.
+  const money = typeof e.price_quoted === 'number' ? ` · $${e.price_quoted}` : '';
+  await send(env, `New enrollment: ${e.player_name ?? e.parent_name ?? 'Unknown'} — ${e.program}${money}`, `
     <h2 style="margin:0 0 12px">New enrollment 🎾</h2>
     <table style="font-family:sans-serif;font-size:14px;border-collapse:collapse">
       ${row('Program', esc(e.program))}
+      ${e.optionLabel ? row('Option', `${esc(e.optionLabel)}${
+        typeof e.price_quoted === 'number' ? ` — <b>$${e.price_quoted}</b>` : ' — <i>price to be confirmed</i>'
+      }`) : ''}
       ${row('Player', `${esc(e.player_name)} (${esc(e.age_group)})`)}
       ${e.parent_name
         ? row('Parent', `${esc(e.parent_name)} — ${esc(e.parent_email)}`)

@@ -22,15 +22,43 @@ confusion this avoids.
 
 What that means in practice:
 
-- Each program has a **QuickBooks payment link**, created by the office in
-  QuickBooks and pasted into `worker/programs.ts`.
-- The site captures the enrolment (player, age group, parent, contact) into D1
-  **before** handing the parent to that link — because QuickBooks tracks the
-  money, not the roster.
+- **A payment link carries its amount inside the link.** This site cannot tell
+  QuickBooks what to charge, which is why links hang off *price options* rather
+  than programs: Shredder's sells three prices, so it needs three links. There
+  are **nine** links, not five. See `PROGRAMS` in `worker/programs.ts`.
+- Links must be **multi-use**. A single-use link stops working after the first
+  parent pays it, and every parent enrolling in an option is sent to the same
+  URL. In QuickBooks: All apps → Sales & Get Paid → Payment links → Create a
+  link → *Multi-use payment link*.
+- The site captures the enrolment (player, age group, parent, contact, **which
+  option**) into D1 **before** handing the parent to that link — because
+  QuickBooks tracks the money, not the roster.
 - The Worker therefore has **no payment webhook**. Whether money actually arrived
   is answered in QuickBooks.
-- Elite Academy's link covers **month one**; the office sets up auto-draft in
-  QuickBooks afterwards. The enrolment email says so, so it is not forgotten.
+- Elite's and Shredder's **membership** options cover month one; the office sets
+  up auto-draft in QuickBooks afterwards, and the enrolment email says so.
+  `autoDraftAfterFirstMonth` sits on the *option*, not the program, because a
+  drop-in is a one-off and must not promise an auto-draft.
+
+### The one wrinkle in this arrangement
+
+A **multi-use payment link records no customer** — Intuit's docs say the sales
+receipt posts with the customer "not specified". That is uncomfortably close to
+the nameless-deposits problem this whole setup exists to avoid.
+
+It is survivable because the names are here instead: the enrolment row holds
+player, parent, email, program, option and timestamp, written before the handoff.
+What it costs is that "who paid this?" is answered by matching the **amount and
+time** against the enrolment list, not by reading a name off the transaction.
+
+Which is why **every price in the catalog is deliberately distinct** — $250, $240,
+$330, $35, $350, $320, $420, $45. One amount means exactly one option, so a
+nameless payment is still identifiable. `npm run check:programs` warns if two
+options ever share a price. Keep it that way when Adult gets priced.
+
+**Not yet confirmed:** whether a multi-use link still records the payer's name
+and email that they type at checkout, even with the Customer field blank. If it
+does, none of the above matters much. Check this on the first real payment.
 
 ## Current status
 
@@ -57,12 +85,25 @@ Intuit's consent screen. Nothing in that list requires her password leaving her:
 the developer app should be created under **our** Intuit developer account so the
 client id and secret are ours, and she only ever authorizes.
 
-**2. Create five payment links** and send them over: Grom's, Shredder's, Summer
-Camp, Elite (one month), Adult. They go into `payUrl` in `worker/programs.ts` —
-until then the form saves the enrolment and shows "the office will follow up"
-instead of redirecting. Our side is ready: see "Prove the first real link" below,
-and send them **one at a time** if that is easier, because a program with no link
-simply keeps the follow-up path.
+**2. Create nine payment links** — one per price option, all **multi-use**. Katie
+confirmed this list on 2026-07-29:
+
+| Option | Price |
+|---|---|
+| Grom's — 10 classes | $250 |
+| Shredder's — 8x/month | $240 |
+| Shredder's — 12x/month | $330 |
+| Shredder's — drop-in | $35 |
+| Summer Morning Camp — 5-day week | $350 *(awaiting her confirmation; it is what her own camp page publishes)* |
+| Elite — 8x/month, first month | $320 |
+| Elite — 12x/month, first month | $420 |
+| Elite — drop-in | $45 |
+| Adult Programs | **unpriced** — still to be decided |
+
+They go into the matching option's `payUrl` in `worker/programs.ts` — until then
+the form saves the enrolment and shows "the office will follow up" instead of
+redirecting. Send them **one at a time** if that is easier: an option with no link
+simply keeps the follow-up path. See "Prove the first real link" below.
 
 **3. Answer three questions:**
 
@@ -147,16 +188,22 @@ Turnstile widget already exist — do not recreate them.
 
 ## Day-to-day
 
-### Add a program's payment link
+### Add a payment link
 
-Edit `payUrl` for that program in `worker/programs.ts`, then `npm run deploy`.
+Edit `payUrl` on that **option** in `worker/programs.ts`, then `npm run deploy`.
 Nothing else changes: the form builds its menus from `GET /api/programs`, so the
-program list, age groups and the adult self-enrol rule all follow from that file.
+program list, the price options, age groups and the adult self-enrol rule all
+follow from that file.
+
+Adding a whole new price is the same job — add an option to the program's
+`options` array with an `id`, `label`, `price` and `payUrl`. The dialog shows the
+option menu automatically once a program has more than one, and `price_option` on
+the enrolment row records which was bought.
 
 `npm run deploy` runs `npm run check:programs` first and refuses to deploy if a
 link is malformed, still has its quotes attached, is not https, or **is pasted
-onto two programs** — that last one would silently charge a parent the wrong
-program's price. Run it on its own any time:
+onto two options** — that last one would silently charge a parent a different
+option's price, e.g. $330 for a $35 drop-in. Run it on its own any time:
 
 ```powershell
 npm run check:programs
@@ -184,8 +231,8 @@ Two things it cannot tell you, and one hole:
 Do this once, with **one** program, before the other four go in. It is the only
 way to catch a link that is valid but points at the wrong thing.
 
-1. Paste the link into that one program's `payUrl`. Leave the others `null`.
-2. `npm run check:programs` — expect `1 of 5 programs can take payment`.
+1. Paste the link into that one option's `payUrl`. Leave the others `null`.
+2. `npm run check:programs` — expect `1 of 9 payment links are set up`.
 3. `npm run deploy`, then wait ~30 seconds.
 4. Confirm the catalog agrees, and that only that program flipped:
 
@@ -195,8 +242,15 @@ way to catch a link that is valid but points at the wrong thing.
 
 5. Enrol through the real form for that program, using an address you can read.
    The dialog should say "Continue to payment" and redirect to QuickBooks.
-6. **On the QuickBooks page, check the program name and the amount, then stop.
-   Do not pay.** A wrong amount here is the whole reason for this checklist.
+6. **On the QuickBooks page, check the program, the option and the amount against
+   what the site displayed, then stop. Do not pay.** Nothing automated can verify
+   this: the site shows the price from `worker/programs.ts` while QuickBooks
+   charges whatever is inside the link, so a link built for the wrong amount looks
+   perfectly fine on the site. A human reading both numbers is the only check.
+7. **If Katie is willing, pay one real link a dollar or two** and look at the
+   resulting transaction in QuickBooks: does it show the payer's name and email,
+   or is it genuinely anonymous? That answers the open question above and decides
+   how much month-end reconciliation work the office is in for.
 7. Confirm the enrolment was captured anyway — it is saved before the handoff, so
    abandoning payment must still leave a row:
 
@@ -250,16 +304,20 @@ npm run test:payurl
 ```
 
 `test:payurl` is offline — no deploy, no database, no secrets. It checks the
-payment-link rules described above, including that one link pasted onto two
-programs is caught and that an unfamiliar host cannot block payment. 26
-assertions, safe to run any time.
+payment-link and price-option rules: that one link pasted onto two options is
+caught, that an unfamiliar host cannot block payment, that no two options share a
+price, that an Elite drop-in never promises an auto-draft, and that a missing
+option id is **refused rather than guessed** when a program sells more than one
+price. 40 assertions, safe to run any time.
 
 The other two run against the **deployed** Worker and create throwaway accounts under
 `acctest-*@example.com` and `enrtest-*@example.com`, deleting them at the end.
-41 assertions, including that one account cannot read or modify another's
+43 assertions, including that one account cannot read or modify another's
 children, that a parent's enrolment history contains their rows and nobody
-else's, and that removing a player detaches its enrolments instead of deleting
-them.
+else's, that a row written before price options existed still reads back, and
+that removing a player detaches its enrolments instead of deleting them.
+
+83 assertions across all three.
 
 ## Reference
 

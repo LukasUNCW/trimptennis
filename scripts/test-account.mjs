@@ -144,10 +144,13 @@ console.log('\n— enrollment history (phase 4) —');
 const idA = (await req('/api/me', A).then((r) => r.json())).account.id;
 const idB = (await req('/api/me', Bc).then((r) => r.json())).account.id;
 
+// The Elite row deliberately leaves price_option/price_quoted NULL: that is what
+// every row written before price options existed looks like, and the page has to
+// keep rendering them.
 d1(`INSERT INTO enrollments (id,created_at,parent_email,player_name,age_group,program,payment_status,account_id)
       VALUES ('${randomBytes(8).toString('hex')}','2026-01-05 10:00:00','${A_EMAIL}','Linked Kid','10-18','Elite Academy','paid','${idA}');
-    INSERT INTO enrollments (id,created_at,parent_email,player_name,age_group,program,payment_status,account_id)
-      VALUES ('${randomBytes(8).toString('hex')}','2026-03-09 10:00:00','${A_EMAIL.toUpperCase()}','Guest Kid','6-12','Summer Morning Camp','awaiting_payment',NULL);
+    INSERT INTO enrollments (id,created_at,parent_email,player_name,age_group,program,payment_status,account_id,price_option,price_quoted)
+      VALUES ('${randomBytes(8).toString('hex')}','2026-03-09 10:00:00','${A_EMAIL.toUpperCase()}','Guest Kid','7-12','Summer Morning Camp','awaiting_payment',NULL,'week',350);
     INSERT INTO enrollments (id,created_at,parent_email,player_name,age_group,program,payment_status,account_id)
       VALUES ('${randomBytes(8).toString('hex')}','2026-02-02 10:00:00','${B_EMAIL}','Bees Kid','9-16',"Shredder's",'paid','${idB}');
     INSERT INTO enrollments (id,created_at,parent_email,player_name,age_group,program,payment_status,account_id)
@@ -171,12 +174,21 @@ ok('newest first', histA[0]?.program === 'Summer Morning Camp' && histA[1]?.prog
 ok('a row for a different email is not included',
    !histA.some((r) => r.player_name === 'Nobodys Kid'), JSON.stringify(histA.map((r) => r.player_name)));
 ok('the fields the page needs are present',
-   histA[0]?.age_group === '6-12' && histA[0]?.payment_status === 'awaiting_payment' && !!histA[0]?.created_at,
+   histA[0]?.age_group === '7-12' && histA[0]?.payment_status === 'awaiting_payment' && !!histA[0]?.created_at,
    JSON.stringify(histA[0]));
+// Which package was bought. Several programs sell more than one price, so
+// without these two the page renders two Shredder's enrolments identically.
+ok('the price option and quoted amount come through',
+   histA[0]?.price_option === 'week' && histA[0]?.price_quoted === 350,
+   JSON.stringify([histA[0]?.price_option, histA[0]?.price_quoted]));
+ok('a row written before options existed still reads back',
+   histA[1]?.price_option === null && histA[1]?.price_quoted === null,
+   JSON.stringify([histA[1]?.price_option, histA[1]?.price_quoted]));
 // Nothing here would be a leak — they are this parent's own details — but the
 // row stays narrow so a future change to the matching rule has less to expose.
 ok('nothing beyond that is returned',
-   Object.keys(histA[0] ?? {}).sort().join(',') === 'age_group,created_at,payment_status,player_name,program',
+   Object.keys(histA[0] ?? {}).sort().join(',') ===
+     'age_group,created_at,payment_status,player_name,price_option,price_quoted,program',
    Object.keys(histA[0] ?? {}).join(','));
 
 const histB = (await req('/api/enrollments', Bc).then((r) => r.json())).enrollments ?? [];

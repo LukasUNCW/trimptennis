@@ -1,8 +1,8 @@
 // scripts/check-programs.mjs — run with: npm run check:programs
 //
-// Checks the five QuickBooks payment links in worker/programs.ts before they
-// reach production. `npm run deploy` runs this first and refuses to deploy if
-// anything is wrong.
+// Checks the QuickBooks payment links in worker/programs.ts before they reach
+// production — one per price option, not one per program. `npm run deploy` runs
+// this first and refuses to deploy if anything is wrong.
 //
 // It is offline and reads no secrets: the point is to catch a bad paste, which
 // is a text problem, not a QuickBooks one. Whether the link charges the right
@@ -22,41 +22,71 @@ const entries = Object.entries(PROGRAMS);
 const errors = [];
 const warnings = [];
 
+// Every option in the catalog, flattened — one payment link each.
+const rows = entries.flatMap(([slug, p]) =>
+  p.options.map((o) => ({ slug, program: p, option: o, key: `${slug}/${o.id}` })));
+
 const pad = (s, n) => String(s).padEnd(n);
-const w = Math.max(...entries.map(([slug]) => slug.length)) + 2;
+const w = Math.max(...rows.map((r) => r.key.length)) + 2;
 
-console.log('\nProgram payment links — worker/programs.ts\n');
+console.log('\nPayment links — worker/programs.ts\n');
 
-for (const [slug, p] of entries) {
-  const problem = payUrlProblem(p);
+// Two options sharing a price would be indistinguishable at month end, because a
+// multi-use QuickBooks link records no customer name and the amount is all the
+// office has to go on. Cheap to check here, expensive to discover in a ledger.
+const byPrice = new Map();
+for (const r of rows) {
+  if (typeof r.option.price !== 'number') continue;
+  if (!byPrice.has(r.option.price)) byPrice.set(r.option.price, []);
+  byPrice.get(r.option.price).push(r.key);
+}
+
+for (const r of rows) {
+  const { key, program, option } = r;
+  const problem = payUrlProblem(option);
+  const price = typeof option.price === 'number' ? `$${option.price}` : 'unpriced';
 
   let state;
   if (problem) {
     state = `BROKEN    ${problem}`;
-    errors.push(`${slug}: payUrl ${problem}`);
-  } else if (p.payUrl === null) {
-    // Not an error. Four of these being empty is the normal state right now, and
-    // the site already handles it by showing "the office will follow up".
-    state = 'not set   the office has not sent this link yet';
+    errors.push(`${key}: payUrl ${problem}`);
+  } else if (option.payUrl === null) {
+    // Not an error. Every one being empty is the normal state right now, and the
+    // site already handles it by showing "the office will follow up".
+    state = 'not set   no link yet';
   } else {
-    state = `ok        ${p.payUrl}`;
-    if (hasUnexpectedPayHost(p)) {
-      const host = new URL(p.payUrl).hostname;
-      warnings.push(`${slug}: host "${host}" is not one payment links are expected on — open it and confirm it is really the QuickBooks payment page, then add the host to KNOWN_PAY_HOST in worker/programs.ts`);
+    state = `ok        ${option.payUrl}`;
+    if (hasUnexpectedPayHost(option)) {
+      const host = new URL(option.payUrl).hostname;
+      warnings.push(`${key}: host "${host}" is not one payment links are expected on — open it and confirm it really is the QuickBooks payment page, then add the host to KNOWN_PAY_HOST in worker/programs.ts`);
     }
   }
 
-  console.log(`  ${pad(slug, w)}${state}`);
-  if (isPayable(p) !== (problem === null && p.payUrl !== null)) {
+  console.log(`  ${pad(key, w)}${pad(price, 10)}${state}`);
+
+  if (isPayable(option) !== (problem === null && option.payUrl !== null)) {
     // Guards the two helpers against drifting apart; they are used in different
     // places and disagreeing would mean the form offers payment the route then
     // refuses to deliver.
-    errors.push(`${slug}: isPayable disagrees with payUrlProblem — that is a bug in programs.ts, not in the link`);
+    errors.push(`${key}: isPayable disagrees with payUrlProblem — that is a bug in programs.ts, not in the link`);
+  }
+  if (!option.id || !option.label) {
+    errors.push(`${key}: every option needs an id and a label`);
   }
 }
 
-const payable = entries.filter(([, p]) => isPayable(p)).length;
-console.log(`\n  ${payable} of ${entries.length} programs can take payment.`);
+for (const [price, keys] of byPrice) {
+  if (keys.length > 1) {
+    warnings.push(`$${price} is used by ${keys.join(' and ')} — a payment for that amount cannot be told apart at month end, because a multi-use link records no customer. Give them different prices if you can.`);
+  }
+}
+
+for (const [slug, p] of entries) {
+  if (!p.options?.length) errors.push(`${slug}: has no price options, so nobody can enrol`);
+}
+
+const payable = rows.filter((r) => isPayable(r.option)).length;
+console.log(`\n  ${payable} of ${rows.length} payment links are set up.`);
 
 for (const warning of warnings) console.log(`\n  WARNING  ${warning}`);
 
