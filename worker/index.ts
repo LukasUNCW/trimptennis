@@ -235,6 +235,13 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
   return json({
     ok: true,
     enrollmentId: row.id,
+    // Echoed back so the review panel shows what was actually recorded rather
+    // than what the form thinks it sent. It matters for a saved player, where the
+    // name comes from the stored child record and not from the submitted field,
+    // and for a single-option program, where the option was resolved here.
+    program: program.name,
+    option: { id: option.id, label: option.label, price: option.price },
+    playerName: player_name,
     // null until Katie has created this option's payment link — the site then
     // shows a "the office will follow up" confirmation instead of redirecting.
     // Also null if the pasted link does not survive checking, which is the same

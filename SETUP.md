@@ -246,7 +246,15 @@ way to catch a link that is valid but points at the wrong thing.
    ```
 
 5. Enrol through the real form for that program, using an address you can read.
-   The dialog should say "Continue to payment" and redirect to QuickBooks.
+   The dialog saves the enrolment and then shows the **review panel** — program,
+   option, player and amount — with a "Continue to payment →" button.
+
+   **This is the first chance anyone gets to look at that panel.** It appears only
+   when an option has a working `payUrl`, so while every link is `null` it is
+   unreachable, and Turnstile does not accept `localhost` so it cannot be
+   exercised locally either. Check that the amount matches the option's `price` in
+   `worker/programs.ts`, and that the player name is right — for a saved player it
+   comes from the stored child record, not from the form.
 6. **On the QuickBooks page, check the program, the option and the amount against
    what the site displayed, then stop. Do not pay.** Nothing automated can verify
    this: the site shows the price from `worker/programs.ts` while QuickBooks

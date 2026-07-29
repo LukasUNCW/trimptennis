@@ -80,6 +80,20 @@
     </div>
   </form>
 
+  <!-- Shown once the enrolment is saved and BEFORE the parent reaches the card
+       page, so nobody arrives at QuickBooks unsure what they are paying for. The
+       handoff is a click rather than an automatic redirect: it is the last chance
+       to notice a wrong package, and the amount is the thing worth reading twice. -->
+  <div class="enroll-done" id="enrollReview" hidden>
+    <div class="tick" aria-hidden="true">&check;</div>
+    <h3>Saved — ready to pay</h3>
+    <dl class="review-list" id="ef-reviewList"></dl>
+    <a class="btn btn-teal" id="ef-pay" href="#">Continue to payment →</a>
+    <p class="enroll-note">Payment is handled by QuickBooks — card details never
+      touch this site. The enrolment is already saved, so if you don't finish now
+      the office will follow up.</p>
+  </div>
+
   <div class="enroll-done" id="enrollDone" hidden>
     <div class="tick" aria-hidden="true">&check;</div>
     <h3 id="ef-doneTitle">You're enrolled</h3>
@@ -111,6 +125,9 @@
   const optionWrap  = document.getElementById('ef-option-wrap');
   const optionSel   = document.getElementById('ef-option');
   const optionNote  = document.getElementById('ef-option-note');
+  const review      = document.getElementById('enrollReview');
+  const reviewList  = document.getElementById('ef-reviewList');
+  const payBtn      = document.getElementById('ef-pay');
 
   let programs = null;   // catalog from /api/programs, fetched once
   let widgetId = null;   // Turnstile widget handle, so we can reset it
@@ -119,6 +136,12 @@
 
   const showErr = (msg) => { errBox.textContent = msg; errBox.hidden = false; };
   const clearErr = () => { errBox.hidden = true; };
+
+  // Saved players' names and the review summary both go into innerHTML, and both
+  // come from data a person typed. The saved-player menu was interpolating a
+  // child's name straight into an <option>.
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   async function loadPrograms() {
     if (programs) return programs;
@@ -153,7 +176,7 @@
     }
     optionSel.innerHTML =
       '<option value="">Choose an option…</option>' +
-      options.map((o) => `<option value="${o.id}">${o.label} — ${money(o.price)}</option>`).join('');
+      options.map((o) => `<option value="${esc(o.id)}">${esc(o.label)} — ${money(o.price)}</option>`).join('');
     optionNote.textContent = options.every((o) => !o.payable)
       ? 'The office will confirm the price and take payment by phone.'
       : '';
@@ -250,7 +273,7 @@
     if (!kids.length) { savedWrap.hidden = true; return; }
     savedWrap.hidden = false;
     savedSel.innerHTML =
-      kids.map((c) => `<option value="${c.id}">${c.first_name}${c.last_name ? ' ' + c.last_name : ''}</option>`).join('') +
+      kids.map((c) => `<option value="${esc(c.id)}">${esc(c.first_name)}${c.last_name ? ' ' + esc(c.last_name) : ''}</option>`).join('') +
       '<option value="">Someone else…</option>';
     applySavedPlayer();
   }
@@ -280,10 +303,37 @@
     }
   }
 
+  /**
+   * The last screen before the card page. Every value comes from the POST
+   * response rather than the form, so it shows what was actually recorded — which
+   * differs for a saved player, whose name the Worker takes from the stored child
+   * record, and for a single-option program, whose option the Worker resolved.
+   */
+  function showReview(data) {
+    const price = typeof data.option?.price === 'number'
+      ? `$${data.option.price}`
+      : 'the office will confirm';
+    const rows = [
+      ['Program', esc(data.program)],
+      ['Option', esc(data.option?.label)],
+      ['Player', esc(data.playerName)],
+      ['Amount', `<span class="review-price">${price}</span>`]
+    ];
+    reviewList.innerHTML = rows
+      .map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`)
+      .join('');
+    payBtn.href = data.payUrl;
+    form.hidden = true;
+    review.hidden = false;
+    payBtn.focus();
+  }
+
   async function open(slug, childId) {
     clearErr();
     form.hidden = false;
     done.hidden = true;
+    // Reopening after an abandoned payment must not show the previous summary.
+    review.hidden = true;
     submitBt.textContent = 'Continue to payment';
     if (!dlg.open) dlg.showModal();
 
@@ -388,10 +438,9 @@
     document.dispatchEvent(new CustomEvent('sta:enrolled'));
 
     // Enrollment is saved either way. payUrl is null until the office has
-    // created that program's QuickBooks payment link.
+    // created that option's QuickBooks payment link.
     if (data.payUrl) {
-      submitBt.textContent = 'Redirecting to payment…';
-      window.location.href = data.payUrl;
+      showReview(data);
       return;
     }
     form.hidden = true;
