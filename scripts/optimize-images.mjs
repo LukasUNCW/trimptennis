@@ -15,7 +15,7 @@
 //   3. WebP is emitted only when it beats mozjpeg at EVERY width — see the
 //      comment on webpWins below for why partial coverage is worse than none.
 
-import { mkdir, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import sharp from 'sharp';
 
@@ -40,6 +40,19 @@ const JOBS = [
   { src: 'mait-dubois.jpg',    out: 'staff/mait-dubois',    widths: [320, 640] },
   { src: 'john-trimp.jpg',     out: 'staff/john-trimp',     widths: [320, 640] },
   { src: 'taylor-vaughn.jpg',  out: 'staff/taylor-vaughn',  widths: [320, 640] }
+];
+
+// Favicons, kept out of JOBS on purpose: that pipeline is built for photographs
+// — EXIF rotation, mozjpeg-vs-WebP, display widths — and none of it applies to a
+// square vector mark that needs transparency and PNG.
+//
+// The SVG itself is the primary icon; browsers that support it render the mark
+// crisply at any size. The PNGs are for everything else: 32px is what a browser
+// tab actually uses, and 180px is the iOS home-screen size.
+const FAVICON_SRC = 'site/images/uncw-logo.svg';
+const FAVICONS = [
+  { size: 32,  out: 'favicon-32.png' },
+  { size: 180, out: 'apple-touch-icon.png' }
 ];
 
 const kb = (n) => (n / 1024).toFixed(0).padStart(5) + ' KB';
@@ -144,6 +157,29 @@ for (const job of JOBS) {
   }
 
   manifest.push({ out: job.out, variants, webpWins });
+}
+
+// ── favicons ─────────────────────────────────────────────────────────────
+console.log('\nfavicons, from ' + FAVICON_SRC + ':');
+{
+  const svg = await readFile(FAVICON_SRC);
+  for (const icon of FAVICONS) {
+    // Rasterised at 8x and scaled down rather than rendered straight to 32px:
+    // rendering a vector directly at tiny sizes leaves the thin white lines in
+    // this mark aliased away, and downsampling keeps them as grey rather than
+    // losing them.
+    const png = await sharp(svg, { density: 72 * 8 })
+      .resize(icon.size, icon.size, {
+        fit: 'contain',
+        background: { r: 0, g: 0, b: 0, alpha: 0 }   // keep the mark transparent
+      })
+      .png({ compressionLevel: 9 })
+      .toBuffer();
+    await writeFile(join(OUT, icon.out), png);
+    outTotal += png.length;
+    console.log(`  ${icon.out.padEnd(22)} ${icon.size}x${icon.size}  ${kb(png.length)}`);
+  }
+  console.log('  the .svg is served as the primary icon; these are the fallbacks');
 }
 
 console.log(`\noriginals: ${kb(srcTotal)}   generated (all variants): ${kb(outTotal)}`);

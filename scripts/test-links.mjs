@@ -47,6 +47,20 @@ ok("trial mode asks for the child's name and age",
 ok('the trial URL serves the contact page',
    (await fetch(`${B}/contact?trial=1`)).status === 200);
 
+console.log('\n— every page has the favicon —');
+// Easy to add to six pages and forget the seventh, and the symptom is a generic
+// icon on one tab that nobody notices.
+for (const p of PAGES) {
+  ok(`${p} declares the icon`,
+     html[p].includes('rel="icon" href="images/uncw-logo.svg"')
+     && html[p].includes('images/favicon-32.png')
+     && html[p].includes('rel="apple-touch-icon"'));
+}
+for (const f of ['/images/uncw-logo.svg', '/images/favicon-32.png', '/images/apple-touch-icon.png']) {
+  const res = await fetch(B + f);
+  ok(`${f} is served`, res.status === 200, String(res.status));
+}
+
 console.log('\n— footers agree with each other —');
 for (const p of PAGES) {
   if (!html[p].includes('Summer camp')) continue;
