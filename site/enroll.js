@@ -76,7 +76,7 @@
       <div id="ef-turnstile"></div>
 
       <button type="submit" class="btn btn-teal" id="ef-submit">Continue to payment</button>
-      <p class="enroll-note">Payment is handled by QuickBooks — card details never touch this site. You'll get a confirmation by email.</p>
+      <p class="enroll-note">Payment is handled by QuickBooks Payments, provided by Intuit Payments Inc. — card details never touch this site. You'll get a confirmation by email.</p>
     </div>
   </form>
 
@@ -89,9 +89,9 @@
     <h3>Saved — ready to pay</h3>
     <dl class="review-list" id="ef-reviewList"></dl>
     <a class="btn btn-teal" id="ef-pay" href="#">Continue to payment →</a>
-    <p class="enroll-note">Payment is handled by QuickBooks — card details never
-      touch this site. The enrolment is already saved, so if you don't finish now
-      the office will follow up.</p>
+    <p class="enroll-note">Payment is handled by QuickBooks Payments, provided by
+      Intuit Payments Inc. — card details never touch this site. The enrolment is
+      already saved, so if you don't finish now the office will follow up.</p>
   </div>
 
   <div class="enroll-done" id="enrollDone" hidden>

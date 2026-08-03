@@ -171,7 +171,15 @@ async function qboFetch(env: Env, path: string, init: RequestInit = {}): Promise
   });
   const body: any = await res.json();
   if (!res.ok || body.Fault) {
-    throw new Error(`QBO ${path}: ${body.Fault ? JSON.stringify(body.Fault.Error) : res.status}`);
+    // intuit_tid identifies this exact request in Intuit's own logs. Without it
+    // a support ticket starts with them trying to find the call; with it they
+    // can look it up. Costs one header read, and the moment it matters is the
+    // moment something has already gone wrong against the academy's real books.
+    const tid = res.headers.get('intuit_tid');
+    throw new Error(
+      `QBO ${path}: ${body.Fault ? JSON.stringify(body.Fault.Error) : res.status}` +
+      (tid ? ` [intuit_tid ${tid}]` : '')
+    );
   }
   return body;
 }
