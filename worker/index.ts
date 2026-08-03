@@ -24,8 +24,12 @@
 // group) because that is the part QuickBooks does not track.
 
 import type { Env } from './types';
-import { lookupProgram, lookupOption, listPrograms, payUrlFor, isEnrollable } from './programs';
-import { buildAuthUrl, exchangeCodeForTokens, listItems, qboConfigured } from './qbo';
+import { PROGRAMS, lookupProgram, lookupOption, listPrograms, payUrlFor, isEnrollable } from './programs';
+import {
+  buildAuthUrl, exchangeCodeForTokens, listItems, qboConfigured, consumeState,
+  findOrCreateCustomer, findItemIdByName, createInvoice,
+  findIncomeAccountId, createServiceItem
+} from './qbo';
 import { notifyEnrollment, notifyInquiry, sendMagicLink } from './email';
 import {
   normaliseEmail, isRateLimited, createLoginToken, redeemLoginToken,
@@ -99,11 +103,19 @@ export default {
       if (request.method === 'GET' && pathname === '/qbo/connect') {
         requireAdmin(url, env);
         if (!qboConfigured(env)) return text(QBO_NOT_CONFIGURED, 503);
-        return Response.redirect(buildAuthUrl(env, url.origin), 302);
+        return Response.redirect(await buildAuthUrl(env, url.origin), 302);
       }
+      // Deliberately not behind ADMIN_KEY — Intuit does the redirecting here and
+      // will not carry our key. The `state` check is what stands in for it: only
+      // an authorization this Worker started can be completed, so a stranger
+      // cannot hand us their own company file and replace the academy's
+      // connection. Consumed on use, so it cannot be replayed.
       if (request.method === 'GET' && pathname === '/qbo/callback') {
         const code = url.searchParams.get('code');
         const realmId = url.searchParams.get('realmId');
+        if (!(await consumeState(env, url.searchParams.get('state')))) {
+          return text('Authorization did not match a request from this site — start again at /qbo/connect.', 403);
+        }
         if (!code || !realmId) return text('Missing code or realmId — restart authorization.', 400);
         await exchangeCodeForTokens(env, url.origin, code, realmId);
         return text('QuickBooks connected. You can close this tab.');
@@ -113,6 +125,67 @@ export default {
         if (!qboConfigured(env)) return text(QBO_NOT_CONFIGURED, 503);
         const items = await listItems(env);
         return json(items.map((i: any) => ({ id: i.Id, name: i.Name, type: i.Type })));
+      }
+      // Creates any catalog item the company file is missing, named from
+      // programs.ts so the names match by construction — no em dash to mistype.
+      //
+      // Sandbox only, and the fence is not squeamishness: this writes to a chart
+      // of accounts, and which income account the academy's revenue lands in is
+      // their bookkeeper's call. Worth revisiting for production once Katie has
+      // named the account — letting this create them would remove the one
+      // failure mode this design still has.
+      if (request.method === 'GET' && pathname === '/qbo/seed-items') {
+        requireAdmin(url, env);
+        if (!qboConfigured(env)) return text(QBO_NOT_CONFIGURED, 503);
+        if (env.QBO_SANDBOX !== 'true') {
+          return text('Refused: QBO_SANDBOX is not "true". This route writes to the chart of accounts.', 403);
+        }
+
+        const existing = new Set((await listItems(env)).map((i: any) => i.Name));
+        const incomeAccountId = await findIncomeAccountId(env, url.searchParams.get('account'));
+
+        const created: string[] = [];
+        const alreadyThere: string[] = [];
+        for (const p of Object.values(PROGRAMS)) {
+          for (const o of p.options) {
+            if (o.qboItem === null) continue;
+            if (existing.has(o.qboItem)) { alreadyThere.push(o.qboItem); continue; }
+            await createServiceItem(env, { name: o.qboItem, price: o.price, incomeAccountId });
+            created.push(o.qboItem);
+            // Guards against a catalog that lists the same item twice — the
+            // second create would fail on QuickBooks' unique-name rule.
+            existing.add(o.qboItem);
+          }
+        }
+        return json({ incomeAccountId, created, alreadyThere });
+      }
+      // Every qboItem in the catalog, checked against what actually exists in
+      // QuickBooks. Read-only, and the answer to the one failure this design can
+      // suffer: Katie types an item name slightly differently and enrollment
+      // breaks for that option only, silently, until a parent hits it.
+      //
+      // Run it after she creates the Items, and again after switching to the
+      // real company file — item names are per company, so a pass against the
+      // sandbox proves nothing about production.
+      if (request.method === 'GET' && pathname === '/qbo/verify-items') {
+        requireAdmin(url, env);
+        if (!qboConfigured(env)) return text(QBO_NOT_CONFIGURED, 503);
+
+        const existing = new Set((await listItems(env)).map((i: any) => i.Name));
+        const wanted = Object.entries(PROGRAMS).flatMap(([slug, p]) =>
+          p.options
+            .filter((o) => o.qboItem !== null)
+            .map((o) => ({ option: `${slug}/${o.id}`, item: o.qboItem as string })));
+
+        const missing = wanted.filter((w) => !existing.has(w.item));
+        return json({
+          ok: missing.length === 0,
+          checked: wanted.length,
+          missing,
+          // Listed so a near-miss is obvious at a glance — "Grom's - 10 classes"
+          // sitting next to "Grom's — 10 classes" explains itself.
+          itemsInQuickBooks: [...existing].sort()
+        });
       }
 
       // Anything else: let the static asset layer answer (e.g. its 404).
@@ -233,12 +306,34 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
           row.account_id, row.child_id, row.price_option, row.price_quoted)
     .run();
 
+  // Only now, with the roster row safely written, do we talk to QuickBooks. The
+  // order is the whole point: a parent who gets this far is recorded whatever
+  // Intuit does next.
+  const payment = await bookInQuickBooks(env, program, option, row);
+
+  // Recording the ids is for the office's benefit later, not for this parent
+  // now, so it must not be able to fail their signup — the roster row is already
+  // written and the invoice already exists. The realistic cause is the ALTER
+  // TABLE in SETUP.md not having been run against this database yet.
+  if (payment.customerId || payment.invoiceId) {
+    try {
+      await env.DB
+        .prepare('UPDATE enrollments SET qbo_customer_id = ?2, qbo_invoice_id = ?3 WHERE id = ?1')
+        .bind(row.id, payment.customerId, payment.invoiceId)
+        .run();
+    } catch (err) {
+      console.error('Could not record QuickBooks ids on enrollment', row.id, err);
+    }
+  }
+
   ctx.waitUntil(notifyEnrollment(env, {
     ...row,
     optionLabel: option.label,
     // Set per option, not per program: Elite sells memberships AND drop-ins, and
     // telling a drop-in player to expect an auto draft would be wrong.
-    autoDraftFollowUp: option.autoDraftAfterFirstMonth === true
+    autoDraftFollowUp: option.autoDraftAfterFirstMonth === true,
+    paymentRoute: payment.route,
+    invoiceId: payment.invoiceId
   }));
 
   return json({
@@ -251,12 +346,146 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
     program: program.name,
     option: { id: option.id, label: option.label, price: option.price },
     playerName: player_name,
-    // null until Katie has created this option's payment link — the site then
-    // shows a "the office will follow up" confirmation instead of redirecting.
-    // Also null if the pasted link does not survive checking, which is the same
-    // situation from the parent's side and logs loudly for us. See payUrlFor.
-    payUrl: payUrlFor(program, option)
+    // null means "no card page to send them to" — the site shows a "the office
+    // will follow up" confirmation instead of redirecting. That covers an option
+    // Katie has not set up, a link that failed checking, and the cases in
+    // bookInQuickBooks where sending them anywhere would risk a double charge.
+    payUrl: payment.payUrl
   });
+}
+
+/** How a parent gets to a card page, and what the office has to do about it. */
+interface PaymentRouting {
+  payUrl: string | null;
+  route: 'invoice' | 'invoice-unsent' | 'static-link' | 'sandbox' | 'timeout' | 'none';
+  customerId: string | null;
+  invoiceId: string | null;
+}
+
+// Intuit gets this long to produce an invoice before we stop making the parent
+// wait. Generous for three API calls, short enough that a signup does not feel
+// broken.
+const QBO_ENROLL_TIMEOUT_MS = 8000;
+
+/**
+ * Raises the customer and invoice in QuickBooks, and decides where to send the
+ * parent. Never throws — every failure resolves to some way forward.
+ *
+ * The rule underneath every branch is that the parent must be sent to AT MOST
+ * one place to pay. An invoice plus a shared payment link means the same $35
+ * can be recorded twice, which is worse than an unattributed payment: wrong
+ * rather than merely unhelpful.
+ *
+ * So the fallbacks split on what we know:
+ *
+ * - Definite failure — QuickBooks answered with an error, or the option has no
+ *   Item. No invoice exists, so the old shared link is safe to use and the money
+ *   still gets taken.
+ * - Timeout — we do not know whether an invoice was created. Sending them to the
+ *   shared link could double-charge, so we send them nowhere and tell the office
+ *   to look. Losing a same-minute card payment is recoverable; billing a family
+ *   twice is the kind of mistake that costs the academy a customer.
+ */
+async function bookInQuickBooks(
+  env: Env,
+  program: ReturnType<typeof lookupProgram> & {},
+  option: { qboItem: string | null; price: number | null; label: string },
+  row: { parent_name: string | null; parent_email: string | null; phone: string | null;
+         player_name: string | null; age_group: string | null }
+): Promise<PaymentRouting> {
+  const staticUrl = payUrlFor(program, option as any);
+  const useStaticLink = (): PaymentRouting => ({
+    payUrl: staticUrl,
+    route: staticUrl ? 'static-link' : 'none',
+    customerId: null,
+    invoiceId: null
+  });
+
+  // Nothing to invoice against: summer camp while it is off, adult programs
+  // until they have a price. Both already have a null payUrl, so this lands on
+  // "the office will follow up", which is the existing, correct behaviour.
+  if (option.qboItem === null || typeof option.price !== 'number' || !row.parent_email) {
+    return useStaticLink();
+  }
+
+  // While pointed at the sandbox, only OUR test enrolments go to QuickBooks. A
+  // real family signing up in the meantime would otherwise have their name and
+  // email written into a throwaway company they have no relationship with, and
+  // wait an extra second for the privilege. They get the old behaviour instead,
+  // unchanged and working.
+  //
+  // The marker is a plus-address, so a test can be run from the real form with a
+  // real inbox: lukas.nilsson4321+qbotest@gmail.com. Delete this whole branch
+  // when QBO_SANDBOX goes to "false".
+  if (env.QBO_SANDBOX === 'true' && !/\+qbotest@/i.test(row.parent_email)) {
+    return useStaticLink();
+  }
+
+  let timedOut = false;
+  try {
+    const work = (async () => {
+      const customerId = await findOrCreateCustomer(env, {
+        email: row.parent_email as string,
+        // Adults enrol themselves and carry no parent_name, so they are their
+        // own customer. Falling through to the email address keeps a customer
+        // findable even if a name somehow arrives empty.
+        name: row.parent_name ?? row.player_name ?? (row.parent_email as string),
+        phone: row.phone
+      });
+      const itemId = await findItemIdByName(env, option.qboItem as string);
+      const invoice = await createInvoice(env, {
+        customerId,
+        itemId,
+        amount: option.price as number,
+        // The player goes on the line, which is what makes per-child reporting
+        // work without a second tier of customers. See docs/QBO-INTEGRATION.md.
+        description: `${option.label} — ${row.player_name ?? ''} (${row.age_group ?? ''})`.trim(),
+        email: row.parent_email as string
+      });
+      return { customerId, invoice };
+    })();
+
+    const { customerId, invoice } = await Promise.race([
+      work,
+      new Promise<never>((_, reject) =>
+        setTimeout(() => { timedOut = true; reject(new Error('QuickBooks timed out')); },
+          QBO_ENROLL_TIMEOUT_MS))
+    ]);
+
+    // In sandbox the invoice is real but the company file is not, and its pay
+    // link goes to Intuit's placeholder page. A parent sent there cannot pay and
+    // has no way to know why. So the invoice still gets raised — that is what
+    // makes the flow testable — but the parent goes to the working static link,
+    // exactly as they did before any of this existed.
+    //
+    // This is what makes it safe to run the invoice flow on the live site while
+    // still pointed at a sandbox. Remove nothing here until QBO_SANDBOX is
+    // "false" and the real company file is connected.
+    if (env.QBO_SANDBOX === 'true') {
+      return {
+        payUrl: staticUrl,
+        route: staticUrl ? 'sandbox' : 'none',
+        customerId,
+        invoiceId: invoice.invoiceId
+      };
+    }
+
+    return {
+      payUrl: invoice.payLink,
+      // An invoice with no link is not a failure — QuickBooks Payments simply is
+      // not connected to that company file. The record is right; somebody just
+      // has to send it.
+      route: invoice.payLink ? 'invoice' : 'invoice-unsent',
+      customerId,
+      invoiceId: invoice.invoiceId
+    };
+  } catch (err) {
+    console.error('QuickBooks booking failed for enrollment', err);
+    if (timedOut) {
+      return { payUrl: null, route: 'timeout', customerId: null, invoiceId: null };
+    }
+    return useStaticLink();
+  }
 }
 
 // ── account & children (docs/ACCOUNTS.md phase 2) ────────────────────────

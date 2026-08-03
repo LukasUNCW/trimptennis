@@ -85,6 +85,51 @@ for (const [slug, p] of entries) {
   if (!p.options?.length) errors.push(`${slug}: has no price options, so nobody can enrol`);
 }
 
+// ── QuickBooks items ──────────────────────────────────────────────────────
+//
+// Offline, like the rest of this script: whether an item of that name actually
+// exists in QuickBooks is a question only QuickBooks can answer, and
+// /qbo/verify-items answers it. What can be caught here is the catalog
+// contradicting itself.
+
+console.log('\nQuickBooks items — worker/programs.ts\n');
+
+const byItem = new Map();
+for (const r of rows) {
+  const { key, program, option } = r;
+  const enrollable = program.enrollable !== false;
+  const priced = typeof option.price === 'number';
+
+  console.log(`  ${pad(key, w)}${option.qboItem ?? '—'}`);
+
+  if (option.qboItem === null) {
+    // Fine while the option cannot be sold. Once it is both enrollable and
+    // priced, a missing item means every enrolment silently falls back to the
+    // old shared payment link and arrives in QuickBooks with no customer — the
+    // exact problem the invoice flow exists to remove.
+    if (enrollable && priced) {
+      errors.push(`${key}: is on sale at $${option.price} but has no qboItem, so it cannot be invoiced`);
+    }
+    continue;
+  }
+
+  if (option.qboItem.trim() !== option.qboItem) {
+    errors.push(`${key}: qboItem has leading or trailing whitespace, which will never match in QuickBooks`);
+  }
+  if (!byItem.has(option.qboItem)) byItem.set(option.qboItem, []);
+  byItem.get(option.qboItem).push(key);
+}
+
+for (const [item, keys] of byItem) {
+  if (keys.length > 1) {
+    errors.push(`"${item}" is used by ${keys.join(' and ')} — two options billing to one item makes revenue-by-program meaningless`);
+  }
+}
+
+const withItem = rows.filter((r) => r.option.qboItem !== null).length;
+console.log(`\n  ${withItem} of ${rows.length} options are mapped to a QuickBooks item.`);
+console.log('  Run /qbo/verify-items to confirm those names exist in QuickBooks.');
+
 const payable = rows.filter((r) => isPayable(r.option)).length;
 console.log(`\n  ${payable} of ${rows.length} payment links are set up.`);
 

@@ -470,6 +470,20 @@ static file and the Worker never runs.
 `IF NOT EXISTS`. Columns added later were applied with `ALTER TABLE`, so a fresh
 database built from `schema.sql` matches production.
 
+**Pending migration — the QuickBooks invoice flow.** Three columns, added to
+`schema.sql` already. Run these against the live database **before** deploying
+the code that uses them, or `/api/enroll` will log an error against every
+enrolment it manages to invoice:
+
+```
+npx wrangler d1 execute trimptennis-db --remote --command "ALTER TABLE enrollments ADD COLUMN qbo_customer_id TEXT"
+npx wrangler d1 execute trimptennis-db --remote --command "ALTER TABLE enrollments ADD COLUMN qbo_invoice_id TEXT"
+npx wrangler d1 execute trimptennis-db --remote --command "ALTER TABLE qbo_tokens ADD COLUMN pending_state TEXT"
+```
+
+SQLite has no `ADD COLUMN IF NOT EXISTS`, so a second run errors with "duplicate
+column name". That message means it already worked — it is not a failure.
+
 ### Accounts
 
 Sign-in is by emailed magic link; **there is no password anywhere in the

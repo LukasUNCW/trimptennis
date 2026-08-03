@@ -39,7 +39,14 @@ CREATE TABLE IF NOT EXISTS enrollments (
   -- what we quoted. It is also how a payment is matched back to a person: a
   -- multi-use QuickBooks payment link records no customer name, so the amount is
   -- the strongest signal the office has.
-  price_quoted INTEGER
+  price_quoted INTEGER,
+  -- Set when the enrolment was written into QuickBooks as a customer and an
+  -- invoice. Both stay NULL when QuickBooks was unreachable and the parent went
+  -- to a static payment link instead, which is precisely the case the office
+  -- needs to find later: an enrolment with no invoice id is one whose payment
+  -- will arrive anonymously and have to be attributed by hand.
+  qbo_customer_id TEXT,
+  qbo_invoice_id TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_enrollments_account ON enrollments (account_id);
 
@@ -130,5 +137,11 @@ CREATE TABLE IF NOT EXISTS qbo_tokens (
   access_token TEXT,
   refresh_token TEXT,
   expires_at INTEGER,               -- epoch ms
-  realm_id TEXT
+  realm_id TEXT,
+  -- The OAuth `state` issued by the last /qbo/connect, cleared as soon as the
+  -- callback consumes it. Without somewhere to keep it there is nothing to
+  -- compare against on the way back, and /qbo/callback would accept an
+  -- authorization code from anyone — overwriting the academy's connection with
+  -- a stranger's company file.
+  pending_state TEXT
 );

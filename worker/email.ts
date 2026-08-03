@@ -82,7 +82,47 @@ export async function notifyEnrollment(env: Env, e: {
   price_quoted?: number | null;
   /** A first month of membership — auto draft has to be set up afterwards. */
   autoDraftFollowUp?: boolean;
+  /**
+   * How this parent was sent to pay. Drives the Payment line, which is the only
+   * thing telling the office whether anything is waiting on them:
+   *
+   * - `invoice`        — invoice raised, parent sent to its pay page. Nothing to do.
+   * - `invoice-unsent` — invoice raised but QuickBooks issued no pay link, so
+   *                      somebody has to send it from QuickBooks.
+   * - `static-link`    — QuickBooks was unreachable; the old shared link was used
+   *                      and the payment will arrive with no customer on it.
+   * - `timeout`        — QuickBooks did not answer in time and may or may not
+   *                      have raised an invoice. Somebody has to look before
+   *                      taking payment another way.
+   * - `none`           — no way to pay yet; the office calls them.
+   */
+  paymentRoute?: 'invoice' | 'invoice-unsent' | 'static-link' | 'sandbox' | 'timeout' | 'none';
+  /** QuickBooks invoice number, when one was raised. */
+  invoiceId?: string | null;
 }): Promise<void> {
+  // Says plainly whether anything is waiting on the office. The two lines that
+  // ask for action are worded as instructions, because the failure mode here is
+  // an email that reads like a receipt and gets filed.
+  const paymentLine = (route: string | undefined, invoiceId: string | null | undefined) => {
+    const inv = invoiceId ? ` (invoice ${esc(invoiceId)})` : '';
+    switch (route) {
+      case 'invoice':
+        return `Invoice raised in QuickBooks${inv} and the parent was sent to pay it. Nothing to do.`;
+      case 'invoice-unsent':
+        return `<b>Action:</b> invoice raised in QuickBooks${inv}, but no payment link came back — send it from QuickBooks.`;
+      case 'static-link':
+        return '<b>Action:</b> QuickBooks could not be reached, so the old shared payment link was used. This payment will arrive with no customer on it and will need attributing by hand.';
+      case 'sandbox':
+        return `TEST MODE — an invoice${inv} was raised in the QuickBooks <b>sandbox</b>, not the academy's books. The parent was sent to the usual payment link, so a real payment will arrive as normal and still needs attributing by hand.`;
+      case 'timeout':
+        return '<b>Action:</b> QuickBooks did not respond in time. An invoice may or may not have been raised — check QuickBooks for this parent BEFORE taking payment another way, or they could be charged twice.';
+      case 'none':
+        return '<b>Action:</b> no payment link for this option — call them to take payment.';
+      default:
+        return 'Sent to the QuickBooks payment link — confirm in QuickBooks that it arrived.';
+    }
+  };
+
   // The amount goes in the subject line because a multi-use QuickBooks payment
   // link records no customer name: when the office reconciles, the amount is
   // what ties a payment back to a person, so it needs to be findable by search.
@@ -100,7 +140,7 @@ export async function notifyEnrollment(env: Env, e: {
         : row('Contact', esc(e.parent_email))}
       ${row('Phone', esc(e.phone))}
       ${e.notes ? row('Notes', esc(e.notes)) : ''}
-      ${row('Payment', 'Sent to the QuickBooks payment link — confirm in QuickBooks that it arrived.')}
+      ${row('Payment', paymentLine(e.paymentRoute, e.invoiceId))}
     </table>
     ${e.autoDraftFollowUp ? `
     <p style="font-family:sans-serif;font-size:14px;background:#FFF4D6;border-left:4px solid #F5B72E;padding:12px 14px;margin:16px 0 0">
