@@ -338,21 +338,52 @@ export async function findItemIdByName(env: Env, name: string): Promise<string> 
  * QBO_SANDBOX. Where the revenue lands is the bookkeeper's decision, not one to
  * infer from a query ordering.
  */
-export async function findIncomeAccountId(env: Env, name?: string | null): Promise<string> {
-  const where = name ? ` and Name = '${qq(name)}'` : '';
+/** Every income account in the company file. Ordering is QuickBooks' own. */
+export async function listIncomeAccounts(env: Env): Promise<any[]> {
   const q = encodeURIComponent(
-    `select Id, Name from Account where AccountType = 'Income'${where} maxresults 5`
+    "select Id, Name, AcctNum, FullyQualifiedName from Account where AccountType = 'Income' maxresults 200"
   );
   const res = await qboFetch(env, `/query?query=${q}`);
-  const account = res.QueryResponse?.Account?.[0];
-  if (!account) {
+  return res.QueryResponse?.Account ?? [];
+}
+
+export async function findIncomeAccountId(env: Env, name?: string | null): Promise<string> {
+  const accounts = await listIncomeAccounts(env);
+  if (accounts.length === 0) {
+    throw new Error('This company file has no income account to book items against.');
+  }
+  if (!name) return accounts[0].Id;
+
+  // Katie answered "7010 Income", which is how QuickBooks DISPLAYS an account
+  // when account numbers are switched on: the number and the name are separate
+  // fields, concatenated for the screen. A plain `Name = '7010 Income'` query
+  // finds nothing, and the failure would look like a missing account rather than
+  // a naming convention.
+  //
+  // So match the ways a human might reasonably write it, in descending order of
+  // how sure we are, and refuse rather than guess if nothing fits.
+  const want = name.trim().toLowerCase();
+  const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
+  const combined = (a: any) => `${norm(a.AcctNum)} ${norm(a.Name)}`.trim();
+
+  const match =
+    accounts.find((a) => norm(a.Name) === want) ??
+    accounts.find((a) => combined(a) === want) ??
+    accounts.find((a) => norm(a.FullyQualifiedName) === want) ??
+    accounts.find((a) => norm(a.AcctNum) === want);
+
+  if (!match) {
+    // Naming what IS there turns a dead end into a one-line answer, and this
+    // error will be read mid-switch against the academy's real books, which is
+    // the worst possible time to go hunting.
+    const available = accounts
+      .map((a) => `${a.AcctNum ? a.AcctNum + ' ' : ''}${a.Name}`)
+      .join(', ');
     throw new Error(
-      name
-        ? `No income account named "${name}" in this company file.`
-        : 'This company file has no income account to book items against.'
+      `No income account matching "${name}". This company file has: ${available}`
     );
   }
-  return account.Id;
+  return match.Id;
 }
 
 /** Creates a Service item. Returns its new id. */

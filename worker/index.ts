@@ -28,7 +28,7 @@ import { PROGRAMS, lookupProgram, lookupOption, listPrograms, payUrlFor, isEnrol
 import {
   buildAuthUrl, exchangeCodeForTokens, listItems, qboConfigured, consumeState,
   findOrCreateCustomer, findItemIdByName, createInvoice,
-  findIncomeAccountId, createServiceItem
+  findIncomeAccountId, createServiceItem, listIncomeAccounts
 } from './qbo';
 import { notifyEnrollment, notifyInquiry, sendMagicLink } from './email';
 import {
@@ -210,6 +210,19 @@ export default {
           },
           results
         });
+      }
+      // Read-only, and safe against the real company file, unlike seed-items.
+      // Run it before the switch to see what the academy's income accounts are
+      // actually called, so `?account=` is copied rather than guessed. Katie
+      // said "7010 Income", which is a display string, not necessarily a name.
+      if (request.method === 'GET' && pathname === '/qbo/income-accounts') {
+        requireAdmin(url, env);
+        if (!qboConfigured(env)) return text(QBO_NOT_CONFIGURED, 503);
+        const accounts = await listIncomeAccounts(env);
+        return json(accounts.map((a: any) => ({
+          id: a.Id, name: a.Name, acctNum: a.AcctNum ?? null,
+          fullyQualifiedName: a.FullyQualifiedName
+        })));
       }
       // Every qboItem in the catalog, checked against what actually exists in
       // QuickBooks. Read-only, and the answer to the one failure this design can
