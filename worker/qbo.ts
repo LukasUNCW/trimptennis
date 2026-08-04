@@ -17,8 +17,55 @@
 
 import type { Env } from './types';
 
+// Last-known-good values, used when discovery is unreachable. See endpoints().
 const TOKEN_URL = 'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer';
 const AUTH_URL = 'https://appcenter.intuit.com/connect/oauth2';
+
+const discoveryUrl = (env: Env) =>
+  env.QBO_SANDBOX === 'true'
+    ? 'https://developer.api.intuit.com/.well-known/openid_sandbox_configuration'
+    : 'https://developer.api.intuit.com/.well-known/openid_configuration';
+
+/**
+ * Cached for the life of the isolate. QBO_SANDBOX only changes on a deploy, and
+ * a deploy replaces isolates, so a cached value can never outlive the flag that
+ * chose it.
+ */
+let cachedEndpoints: { auth: string; token: string } | null = null;
+
+/**
+ * The OAuth endpoints, read from Intuit's discovery document.
+ *
+ * These were hardcoded, which works right up until Intuit moves one. Reading
+ * discovery is what they ask for and it costs one cached request.
+ *
+ * On any failure it returns the hardcoded pair rather than throwing, and does
+ * not cache that result so the next call tries discovery again. The reasoning is
+ * that discovery being down is not a reason to refuse to authenticate with
+ * endpoints we know work today. This is strictly no worse than hardcoding, which
+ * is the bar a change like this has to clear.
+ */
+async function endpoints(env: Env): Promise<{ auth: string; token: string }> {
+  if (cachedEndpoints) return cachedEndpoints;
+
+  try {
+    const res = await fetch(discoveryUrl(env), { headers: { Accept: 'application/json' } });
+    if (res.ok) {
+      const doc: any = await res.json();
+      if (typeof doc.authorization_endpoint === 'string' && typeof doc.token_endpoint === 'string') {
+        cachedEndpoints = { auth: doc.authorization_endpoint, token: doc.token_endpoint };
+        return cachedEndpoints;
+      }
+      console.warn('QBO discovery document missing expected endpoints — using known values');
+    } else {
+      console.warn(`QBO discovery returned ${res.status} — using known values`);
+    }
+  } catch (err) {
+    console.warn('QBO discovery unreachable — using known values', err);
+  }
+
+  return { auth: AUTH_URL, token: TOKEN_URL };
+}
 
 const apiBase = (env: Env) =>
   env.QBO_SANDBOX === 'true'
@@ -80,7 +127,7 @@ export async function buildAuthUrl(env: Env, origin: string): Promise<string> {
     scope: 'com.intuit.quickbooks.accounting',
     state
   });
-  return `${AUTH_URL}?${params}`;
+  return `${(await endpoints(env)).auth}?${params}`;
 }
 
 /**
@@ -101,7 +148,7 @@ export async function consumeState(env: Env, state: string | null): Promise<bool
 export async function exchangeCodeForTokens(
   env: Env, origin: string, code: string, realmId: string
 ): Promise<void> {
-  const res = await fetch(TOKEN_URL, {
+  const res = await fetch((await endpoints(env)).token, {
     method: 'POST',
     headers: {
       Authorization: basicAuth(env),
@@ -131,7 +178,7 @@ async function getAccessToken(env: Env): Promise<{ accessToken: string; realmId:
     return { accessToken: row.access_token, realmId: row.realm_id };
   }
 
-  const res = await fetch(TOKEN_URL, {
+  const res = await fetch((await endpoints(env)).token, {
     method: 'POST',
     headers: {
       Authorization: basicAuth(env),
