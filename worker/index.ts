@@ -127,22 +127,34 @@ export default {
         return json(items.map((i: any) => ({ id: i.Id, name: i.Name, type: i.Type })));
       }
       // Creates any catalog item the company file is missing, named from
-      // programs.ts so the names match by construction — no em dash to mistype.
+      // programs.ts so the names match by construction — nothing to mistype.
       //
-      // Sandbox only, and the fence is not squeamishness: this writes to a chart
-      // of accounts, and which income account the academy's revenue lands in is
-      // their bookkeeper's call. Worth revisiting for production once Katie has
-      // named the account — letting this create them would remove the one
-      // failure mode this design still has.
+      // This writes to a chart of accounts, and where the academy's revenue
+      // lands is their bookkeeper's decision, not one to infer from a query
+      // ordering. That is what the guard below protects, so it asks for the
+      // decision rather than refusing the operation: against a real company
+      // file, ?account= must name the account explicitly, and findIncomeAccountId
+      // refuses rather than falling back if the name matches nothing.
+      //
+      // In sandbox the default is allowed, because a throwaway company's chart
+      // of accounts is not worth ceremony.
       if (request.method === 'GET' && pathname === '/qbo/seed-items') {
         requireAdmin(url, env);
         if (!qboConfigured(env)) return text(QBO_NOT_CONFIGURED, 503);
-        if (env.QBO_SANDBOX !== 'true') {
-          return text('Refused: QBO_SANDBOX is not "true". This route writes to the chart of accounts.', 403);
+
+        const account = url.searchParams.get('account')?.trim() || null;
+        if (env.QBO_SANDBOX !== 'true' && !account) {
+          return text(
+            'Refused: this writes to a real chart of accounts.\n\n' +
+            'Pass ?account= naming the income account program revenue should book\n' +
+            'to. Run /qbo/income-accounts first to see what this company file\n' +
+            'actually calls them — do not guess.',
+            403
+          );
         }
 
         const existing = new Set((await listItems(env)).map((i: any) => i.Name));
-        const incomeAccountId = await findIncomeAccountId(env, url.searchParams.get('account'));
+        const incomeAccountId = await findIncomeAccountId(env, account);
 
         const created: string[] = [];
         const alreadyThere: string[] = [];

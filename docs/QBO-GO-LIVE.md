@@ -65,17 +65,25 @@ pair. Development keys only work against sandbox.
 on a page reading "QuickBooks connected." Confirm the company on Intuit's
 consent screen is the academy's real one and not a sandbox.
 
-**5. Create the Items, then verify.**
+**5. Look at the chart of accounts, then create the Items.**
 
 ```
-/qbo/seed-items?key=ADMIN_KEY&account=<the account Katie named>
+/qbo/income-accounts?key=ADMIN_KEY
+```
+
+Read-only. Katie's answer was "7010 Income", which is a display string: with
+account numbers switched on, QuickBooks joins `AcctNum` and `Name` for the
+screen. Read the real values off this before the next call rather than guessing.
+
+```
+/qbo/seed-items?key=ADMIN_KEY&account=<the income account>
 /qbo/verify-items?key=ADMIN_KEY
 ```
 
-`seed-items` is fenced to sandbox and **will refuse to run here.** That fence is
-deliberate: it writes to a chart of accounts. Either lift it for one deploy with
-the account name known and correct, or have Katie create the seven Items by hand
-from the list in `worker/programs.ts`. Do not lift the fence and leave it lifted.
+Against a real company file `?account=` is **required** and there is no default.
+If the name matches nothing, the call refuses and lists what the file actually
+contains. Booking the academy's revenue somewhere plausible is worse than
+stopping.
 
 `verify-items` must return `"ok": true` with `missing` empty before going
 further. Item names are per company file, so a pass against the sandbox proves
