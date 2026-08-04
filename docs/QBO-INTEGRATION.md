@@ -88,6 +88,35 @@ office, and show the "we'll call you to take payment" path — exactly what the
 site already does for an option with no payment link. A third party's outage must
 not cost a signup.
 
+## This is not a payments app, per Intuit
+
+Settled 2026-08-04, and written down because it cost two rejections to establish.
+
+Getting production keys requires an app assessment questionnaire, which asks
+whether the app belongs to any regulated industry. "Payments / money movement"
+looks like it fits: the app's purpose is helping a parent pay the academy, and
+the category's own wording says it covers apps that "automate payment
+transactions between two individuals."
+
+It does not fit, and selecting it fails the assessment. That section asks you to
+certify that you hold licences to provide payment services, that you have
+agreements with banks, and that you work with legal counsel on regulatory
+obligations. Those are questions for a company that moves money. Answering them
+honestly means certifying No, and a No there is an automatic rejection.
+
+Intuit's own answer, from support ticket 00222863:
+
+> If your app is not categorized as a payments or money movement app, please
+> remove this selection from the General Industries section and avoid answering
+> any related questions.
+
+The app creates an invoice and hands the parent to a QuickBooks-hosted page. It
+calls only the Accounting API, never the Payments API, never touches card data
+and never holds funds. Intuit processes the payment for the academy under the
+academy's own merchant agreement, to which this app is not a party.
+
+So: **None of the above**, under regulated industries. Do not revisit this.
+
 ## Prerequisites, and who owns them
 
 1. **Create an app** at developer.intuit.com and set real `QBO_CLIENT_ID` and

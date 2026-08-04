@@ -159,6 +159,58 @@ export default {
         }
         return json({ incomeAccountId, created, alreadyThere });
       }
+      // Exercises the failure paths in bookInQuickBooks against the real API,
+      // because until something does, the catch block that protects every
+      // enrolment has never once executed. "It should fall back" is a claim
+      // about untested code; this turns it into an observation.
+      //
+      // Sandbox only. It books a real invoice for the healthy case.
+      if (request.method === 'GET' && pathname === '/qbo/test-fallback') {
+        requireAdmin(url, env);
+        if (!qboConfigured(env)) return text(QBO_NOT_CONFIGURED, 503);
+        if (env.QBO_SANDBOX !== 'true') {
+          return text('Refused: QBO_SANDBOX is not "true". This route writes real records.', 403);
+        }
+
+        const program = lookupProgram('shredders');
+        const healthy = program?.options.find((o) => o.id === 'drop-in');
+        if (!program || !healthy) return text('Catalog changed — fix /qbo/test-fallback.', 500);
+
+        const row = {
+          parent_name: 'Fallback Probe',
+          parent_email: 'fallback+qbotest@example.test',
+          phone: null,
+          player_name: 'Probe Player',
+          age_group: '9-16'
+        };
+
+        const cases = [
+          { case: 'item name missing from QuickBooks', option: { ...healthy, qboItem: 'No Such Item 000' } },
+          { case: 'option has no item mapped', option: { ...healthy, qboItem: null } },
+          { case: 'healthy', option: healthy }
+        ];
+
+        const results = [];
+        for (const c of cases) {
+          const r = await bookInQuickBooks(env, program, c.option as any, row);
+          results.push({
+            case: c.case,
+            route: r.route,
+            // The point of the whole exercise: a failure must still leave the
+            // parent somewhere they can pay.
+            parentCanStillPay: r.payUrl !== null,
+            invoiceId: r.invoiceId
+          });
+        }
+        return json({
+          expected: {
+            'item name missing from QuickBooks': 'static-link, parentCanStillPay true, no invoice',
+            'option has no item mapped': 'static-link, parentCanStillPay true, no invoice',
+            healthy: 'sandbox, parentCanStillPay true, invoice created'
+          },
+          results
+        });
+      }
       // Every qboItem in the catalog, checked against what actually exists in
       // QuickBooks. Read-only, and the answer to the one failure this design can
       // suffer: Katie types an item name slightly differently and enrollment

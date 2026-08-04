@@ -158,17 +158,70 @@ async function saveTokens(env: Env, t: any, realmId: string): Promise<void> {
     .run();
 }
 
+/**
+ * Retries for a transient failure, but ONLY for reads.
+ *
+ * This is the constraint that shapes the whole thing: creating a customer or an
+ * invoice is not idempotent. If a POST times out or returns a 502 we do not know
+ * whether QuickBooks acted on it, and retrying can produce two invoices for one
+ * enrolment. A family billed twice is a worse outcome than a retry we did not
+ * attempt, so writes get exactly one attempt and fall back instead.
+ *
+ * Reads are safe to repeat, and repeating them is worth it: a query that blips
+ * would otherwise push a perfectly good enrolment down the fallback path.
+ *
+ * Delays are small on purpose. /api/enroll gives QuickBooks eight seconds total
+ * before it stops making the parent wait, and a retry budget that eats it just
+ * converts one failure mode into another.
+ */
+const RETRY_DELAYS_MS = [200, 600];
+
+const isRetryableStatus = (status: number) => status === 429 || status >= 500;
+
 async function qboFetch(env: Env, path: string, init: RequestInit = {}): Promise<any> {
-  const { accessToken, realmId } = await getAccessToken(env);
-  const res = await fetch(`${apiBase(env)}/${realmId}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      ...(init.headers ?? {})
+  const method = (init.method ?? 'GET').toUpperCase();
+  const retryable = method === 'GET';
+
+  let res: Response | undefined;
+  let networkError: unknown;
+
+  for (let attempt = 0; ; attempt++) {
+    // Fetched inside the loop so a retry that follows a refresh does not reuse a
+    // token that expired while we were waiting.
+    const { accessToken, realmId } = await getAccessToken(env);
+
+    networkError = undefined;
+    try {
+      res = await fetch(`${apiBase(env)}/${realmId}${path}`, {
+        ...init,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          ...(init.headers ?? {})
+        }
+      });
+    } catch (err) {
+      networkError = err;
     }
-  });
+
+    const shouldRetry =
+      retryable &&
+      attempt < RETRY_DELAYS_MS.length &&
+      (networkError !== undefined || (res !== undefined && isRetryableStatus(res.status)));
+
+    if (!shouldRetry) break;
+
+    console.warn(
+      `QBO ${path}: attempt ${attempt + 1} failed ` +
+      `(${networkError !== undefined ? 'network error' : res!.status}), retrying`
+    );
+    await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+  }
+
+  if (res === undefined) {
+    throw new Error(`QBO ${path}: request failed — ${String(networkError)}`);
+  }
   const body: any = await res.json();
   if (!res.ok || body.Fault) {
     // intuit_tid identifies this exact request in Intuit's own logs. Without it
