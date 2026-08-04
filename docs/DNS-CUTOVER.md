@@ -210,6 +210,32 @@ Once Resend reports the domain verified:
 Until step 3 passes, **parent accounts still cannot ship to real parents.** That
 is the whole reason this migration matters beyond vanity.
 
+## Also update Intuit, after the domain moves
+
+Not urgent and not part of the DNS work, but it lives here because this is the
+document someone reads when the domain changes, and forgetting it breaks
+QuickBooks authorization at the worst possible moment.
+
+The Intuit app's **host domain** is set to `trimptennis.lukas-nilsson4321.workers.dev`,
+because that is genuinely where the app ran when it was registered. Once the
+academy's domain is serving the site, update it at developer.intuit.com under
+the app's Production settings.
+
+The **redirect URIs** already list both hosts, so re-authorization keeps working
+across the move without touching them. Check rather than assume: Intuit keeps
+separate lists for development and production keys, and only production matters
+now.
+
+Both URIs should be present:
+
+```
+https://trimptennis.lukas-nilsson4321.workers.dev/qbo/callback
+https://seahawkstennisacademy.com/qbo/callback
+```
+
+A mismatch here surfaces as an opaque Intuit error during authorization that
+says nothing about redirect URIs. See `docs/QBO-GO-LIVE.md`.
+
 ## Rollback
 
 At the registrar, point the nameservers back at `ns1`/`ns2.mytenniscenter.com`.
