@@ -542,7 +542,17 @@ export async function createInvoice(env: Env, input: InvoiceInput): Promise<Invo
           SalesItemLineDetail: {
             ItemRef: { value: input.itemId },
             Qty: 1,
-            UnitPrice: input.amount
+            UnitPrice: input.amount,
+            // Katie, 2026-08-05: "No we do not charge sales tax ever." Their
+            // company file has sales tax configured, so without this the line
+            // inherits whatever the item or customer defaults to and the taxable
+            // box can come through ticked. Saying NON explicitly means the answer
+            // does not depend on a setting nobody here controls.
+            //
+            // If the academy ever does start charging tax, this is the line to
+            // change, and it should change because somebody decided to rather
+            // than because a default drifted.
+            TaxCodeRef: { value: 'NON' }
           }
         }
       ]
