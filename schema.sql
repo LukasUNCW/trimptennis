@@ -59,6 +59,45 @@ CREATE INDEX IF NOT EXISTS idx_enrollments_program ON enrollments (program);
 -- parent_email alone would not be used by lower(parent_email) = ?.
 CREATE INDEX IF NOT EXISTS idx_enrollments_parent_email ON enrollments (lower(parent_email));
 
+-- ── weekday sessions and their capacity ─────────────────────────────────
+--
+-- Grom's runs Monday to Thursday and a parent chooses which days their child
+-- attends. Each weekday is its own class with its own 18 places, so Monday
+-- filling up says nothing about Wednesday.
+--
+-- Rows rather than code, unlike the program catalog in worker/programs.ts,
+-- because capacity is a fact about the world that changes mid-season: a coach
+-- calls in sick, a day gets added, the cap moves to 20. None of that should need
+-- a deploy.
+--
+-- Only Grom's uses this today. The table is keyed by program anyway, because
+-- Shredder's asking for the same thing next month is the obvious next request.
+CREATE TABLE IF NOT EXISTS program_sessions (
+  id TEXT PRIMARY KEY,              -- 'groms-mon'; stable, stored on enrolments
+  program TEXT NOT NULL,            -- slug, matches worker/programs.ts
+  weekday TEXT NOT NULL,            -- 'Monday'
+  time_label TEXT,                  -- '4:00 – 5:00 PM', display only
+  capacity INTEGER NOT NULL,
+  -- A session that has stopped running but must not be deleted: enrolments
+  -- reference it, and the account page resolves the id to a readable label.
+  active INTEGER NOT NULL DEFAULT 1,
+  sort INTEGER NOT NULL DEFAULT 0   -- Monday before Tuesday, not alphabetical
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_program ON program_sessions (program, active);
+
+-- Which days a given enrolment holds a place on. One row per day chosen.
+--
+-- The primary key is what enforces the cap safely: capacity is checked by an
+-- INSERT ... SELECT WHERE count < capacity, which is a single statement and so
+-- cannot be raced by two parents taking the last place at once. A check followed
+-- by an insert can be, and would be, eventually.
+CREATE TABLE IF NOT EXISTS enrollment_sessions (
+  enrollment_id TEXT NOT NULL REFERENCES enrollments(id) ON DELETE CASCADE,
+  session_id TEXT NOT NULL REFERENCES program_sessions(id),
+  PRIMARY KEY (enrollment_id, session_id)
+);
+CREATE INDEX IF NOT EXISTS idx_enrollment_sessions_session ON enrollment_sessions (session_id);
+
 -- Non-payment form submissions: free trial requests, contact form.
 CREATE TABLE IF NOT EXISTS inquiries (
   id TEXT PRIMARY KEY,              -- crypto.randomUUID()

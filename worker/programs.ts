@@ -89,6 +89,19 @@ export interface Program {
    */
   selfEnroll?: boolean;
   /**
+   * The parent chooses which weekdays their child attends, and each weekday is a
+   * separate class with its own cap. Grom's runs Monday to Thursday.
+   *
+   * The days are a capacity question, not a pricing one: $250 buys the ten week
+   * term whether a child comes once a week or four times. If that ever changes,
+   * it changes here and in the price options, not in the session rows.
+   *
+   * The days themselves live in the program_sessions table rather than in this
+   * file, because a cancelled Wednesday or a cap moving to 20 is a fact about
+   * the season that should not need a deploy.
+   */
+  picksDays?: boolean;
+  /**
    * False when the program exists but is not currently taking signups — a season
    * that has finished, or one cancelled for lack of numbers.
    *
@@ -115,8 +128,9 @@ export const PROGRAMS: Record<string, Program> = {
   groms: {
     name: "Grom's",
     ageGroups: ['6-12'],
+    picksDays: true,
     options: [
-      { id: 'standard', label: '10 classes', price: 250, qboItem: "Groms Tennis", payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-f4a24dfac7ce46a48793ebfee81826cfc1ac205d73b24e6a9343cae86897f2354c4e880a9ebb416c83487747896e4795?locale=EN_US&cta=saveandcopylink' }
+      { id: 'standard', label: '10 week term', price: 250, qboItem: "Groms Tennis", payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-f4a24dfac7ce46a48793ebfee81826cfc1ac205d73b24e6a9343cae86897f2354c4e880a9ebb416c83487747896e4795?locale=EN_US&cta=saveandcopylink' }
     ]
   },
   shredders: {
@@ -318,6 +332,7 @@ export const listPrograms = () =>
     name: p.name,
     ageGroups: p.ageGroups,
     selfEnroll: p.selfEnroll === true,
+    picksDays: p.picksDays === true,
     // Still listed even when false, because the account page resolves a stored
     // option id to its label through this response. The enrol form filters on it.
     enrollable: isEnrollable(p),

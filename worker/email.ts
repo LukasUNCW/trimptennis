@@ -83,6 +83,12 @@ export async function notifyEnrollment(env: Env, e: {
   /** A first month of membership — auto draft has to be set up afterwards. */
   autoDraftFollowUp?: boolean;
   /**
+   * Weekdays this child is booked onto, for programs where the parent picks.
+   * The office needs it to build a register, and it is the first thing they will
+   * be asked about on the phone.
+   */
+  days?: string[];
+  /**
    * How this parent was sent to pay. Drives the Payment line, which is the only
    * thing telling the office whether anything is waiting on them:
    *
@@ -135,6 +141,7 @@ export async function notifyEnrollment(env: Env, e: {
         typeof e.price_quoted === 'number' ? ` — <b>$${e.price_quoted}</b>` : ' — <i>price to be confirmed</i>'
       }`) : ''}
       ${row('Player', `${esc(e.player_name)} (${esc(e.age_group)})`)}
+      ${e.days?.length ? row('Days', `<b>${e.days.map(esc).join(', ')}</b>`) : ''}
       ${e.parent_name
         ? row('Parent', `${esc(e.parent_name)} — ${esc(e.parent_email)}`)
         : row('Contact', esc(e.parent_email))}

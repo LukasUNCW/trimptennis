@@ -30,6 +30,7 @@ import {
   findOrCreateCustomer, findItemIdByName, createInvoice,
   findIncomeAccountId, createServiceItem, listIncomeAccounts, getInvoiceLink
 } from './qbo';
+import { listSessions, claimSessions } from './sessions';
 import { notifyEnrollment, notifyInquiry, sendMagicLink } from './email';
 import {
   normaliseEmail, isRateLimited, createLoginToken, redeemLoginToken,
@@ -44,6 +45,15 @@ export default {
     try {
       if (request.method === 'GET' && pathname === '/api/programs') {
         return json(listPrograms());
+      }
+      // Which weekdays a program runs and how many places are left on each.
+      // The enrol form reads this to build its day picker, and re-reads it when
+      // the dialog opens so a page left open overnight does not offer a day that
+      // filled hours ago.
+      if (request.method === 'GET' && pathname === '/api/sessions') {
+        const slug = url.searchParams.get('program') ?? '';
+        if (!lookupProgram(slug)) return json({ error: 'Unknown program.' }, 400);
+        return json(await listSessions(env, slug));
       }
       if (request.method === 'GET' && pathname === '/api/inquiry-topics') {
         return json(INQUIRY_TOPICS);
@@ -378,6 +388,18 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
     return json({ error: `Choose an age group: ${program.ageGroups.join(', ')}` }, 400);
   }
 
+  // Grom's runs Monday to Thursday and the parent picks which days. Required
+  // rather than optional: an enrolment with no days holds no place in any class,
+  // so the child would be paid for and on nobody's register.
+  const rawDays: unknown[] = Array.isArray(body.days) ? body.days : [];
+  const days: string[] = program.picksDays
+    ? [...new Set(rawDays.filter(
+        (d): d is string => typeof d === 'string' && d.length > 0 && d.length < 60))]
+    : [];
+  if (program.picksDays && days.length === 0) {
+    return json({ error: 'Choose at least one day.' }, 400);
+  }
+
   const row = {
     id: crypto.randomUUID(),
     parent_name,
@@ -411,10 +433,31 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
           row.account_id, row.child_id, row.price_option, row.price_quoted)
     .run();
 
-  // Only now, with the roster row safely written, do we talk to QuickBooks. The
-  // order is the whole point: a parent who gets this far is recorded whatever
-  // Intuit does next.
-  const payment = await bookInQuickBooks(env, program, option, row);
+  // Places are taken before QuickBooks is told anything, because a full class is
+  // the one failure that must stop the enrolment rather than degrade it. Every
+  // other failure below leaves the parent enrolled and the office notified; this
+  // one means there is no seat, so there is nothing to invoice for.
+  let dayLabels: string[] = [];
+  if (program.picksDays) {
+    const claim = await claimSessions(env, row.id, String(body.program), days);
+    if (!claim.ok) {
+      // The row was written a moment ago, has no invoice and has triggered no
+      // email, so removing it leaves nothing behind. Better than a roster full
+      // of enrolments that were never really accepted.
+      await env.DB.prepare('DELETE FROM enrollments WHERE id = ?1').bind(row.id).run();
+      const filled = claim.full.join(' and ');
+      return json({
+        error: `${filled} just filled up. Please choose different days — the rest are still open.`,
+        full: claim.full
+      }, 409);
+    }
+    dayLabels = claim.labels;
+  }
+
+  // Only now, with the roster row safely written and the places held, do we talk
+  // to QuickBooks. The order is the whole point: a parent who gets this far is
+  // recorded whatever Intuit does next.
+  const payment = await bookInQuickBooks(env, program, option, row, dayLabels);
 
   // Recording the ids is for the office's benefit later, not for this parent
   // now, so it must not be able to fail their signup — the roster row is already
@@ -437,6 +480,7 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
     // Set per option, not per program: Elite sells memberships AND drop-ins, and
     // telling a drop-in player to expect an auto draft would be wrong.
     autoDraftFollowUp: option.autoDraftAfterFirstMonth === true,
+    days: dayLabels,
     paymentRoute: payment.route,
     invoiceId: payment.invoiceId
   }));
@@ -451,6 +495,7 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
     program: program.name,
     option: { id: option.id, label: option.label, price: option.price },
     playerName: player_name,
+    days: dayLabels,
     // null means "no card page to send them to" — the site shows a "the office
     // will follow up" confirmation instead of redirecting. That covers an option
     // Katie has not set up, a link that failed checking, and the cases in
@@ -496,7 +541,9 @@ async function bookInQuickBooks(
   program: ReturnType<typeof lookupProgram> & {},
   option: { qboItem: string | null; price: number | null; label: string },
   row: { parent_name: string | null; parent_email: string | null; phone: string | null;
-         player_name: string | null; age_group: string | null }
+         player_name: string | null; age_group: string | null },
+  /** Weekdays claimed, for programs where the parent picks days. */
+  dayLabels: string[] = []
 ): Promise<PaymentRouting> {
   const staticUrl = payUrlFor(program, option as any);
   const useStaticLink = (): PaymentRouting => ({
@@ -544,7 +591,14 @@ async function bookInQuickBooks(
         amount: option.price as number,
         // The player goes on the line, which is what makes per-child reporting
         // work without a second tier of customers. See docs/QBO-INTEGRATION.md.
-        description: `${option.label} — ${row.player_name ?? ''} (${row.age_group ?? ''})`.trim(),
+        // The days go on it too where there are any, because "which days is my
+        // child booked for" is a question the office will be asked, and the
+        // invoice is the record the parent also has a copy of.
+        description: [
+          option.label,
+          dayLabels.length ? dayLabels.join(', ') : null,
+          `${row.player_name ?? ''} (${row.age_group ?? ''})`.trim()
+        ].filter(Boolean).join(' — '),
         email: row.parent_email as string
       });
       return { customerId, invoice };
