@@ -415,6 +415,22 @@ export async function createServiceItem(
   return res.Item.Id;
 }
 
+/**
+ * The pay page for an invoice that already exists.
+ *
+ * The link is handed to the parent once, in the response to /api/enroll, and
+ * then it is gone — we store the invoice id, not the URL. That is fine until
+ * somebody needs it again: a parent who closed the tab, an office chasing an
+ * abandoned checkout, or a test payment somebody has to hand to the bookkeeper.
+ *
+ * Null when QuickBooks issues no link, which means Payments is not connected to
+ * that company file. The invoice is still real.
+ */
+export async function getInvoiceLink(env: Env, invoiceId: string): Promise<string | null> {
+  const res = await qboFetch(env, `/invoice/${encodeURIComponent(invoiceId)}?include=invoiceLink`);
+  return res.Invoice?.InvoiceLink ?? null;
+}
+
 export interface CustomerInput {
   email: string;
   /** Parent's full name as they typed it. Display only — never the match key. */

@@ -28,7 +28,7 @@ import { PROGRAMS, lookupProgram, lookupOption, listPrograms, payUrlFor, isEnrol
 import {
   buildAuthUrl, exchangeCodeForTokens, listItems, qboConfigured, consumeState,
   findOrCreateCustomer, findItemIdByName, createInvoice,
-  findIncomeAccountId, createServiceItem, listIncomeAccounts
+  findIncomeAccountId, createServiceItem, listIncomeAccounts, getInvoiceLink
 } from './qbo';
 import { notifyEnrollment, notifyInquiry, sendMagicLink } from './email';
 import {
@@ -248,6 +248,21 @@ export default {
           id: a.Id, name: a.Name, acctNum: a.AcctNum ?? null,
           fullyQualifiedName: a.FullyQualifiedName
         })));
+      }
+      // Re-reads the pay page for an invoice that already exists. Read-only.
+      //
+      // The link reaches the parent once, in the /api/enroll response, and is
+      // never stored — we keep the invoice id instead, because the id is what
+      // reconciles and the URL is just a way to reach it. This is how you get
+      // the URL back: a closed tab, an abandoned checkout the office wants to
+      // chase, or a test invoice somebody else has to pay.
+      if (request.method === 'GET' && pathname === '/qbo/invoice-link') {
+        requireAdmin(url, env);
+        if (!qboConfigured(env)) return text(QBO_NOT_CONFIGURED, 503);
+        const id = url.searchParams.get('id')?.trim();
+        if (!id) return text('Pass ?id= with the QuickBooks invoice number.', 400);
+        const link = await getInvoiceLink(env, id);
+        return json({ invoiceId: id, payLink: link, payLinkPresent: link !== null });
       }
       // Every qboItem in the catalog, checked against what actually exists in
       // QuickBooks. Read-only, and the answer to the one failure this design can
