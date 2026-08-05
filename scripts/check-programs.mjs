@@ -1,13 +1,17 @@
 // scripts/check-programs.mjs — run with: npm run check:programs
 //
-// Checks the QuickBooks payment links in worker/programs.ts before they reach
-// production — one per price option, not one per program. `npm run deploy` runs
-// this first and refuses to deploy if anything is wrong.
+// Checks the catalog in worker/programs.ts before it reaches production, one
+// price option at a time. `npm run deploy` runs this first and refuses to deploy
+// if anything is wrong.
 //
-// It is offline and reads no secrets: the point is to catch a bad paste, which
-// is a text problem, not a QuickBooks one. Whether the link charges the right
-// amount is something only a human opening it can tell — see the checklist in
-// SETUP.md.
+// Since payment links were retired it mostly guards the QuickBooks item mapping:
+// an option on sale with no item cannot be invoiced, and two options sharing an
+// item makes revenue-by-program meaningless. It also warns about any static link
+// pasted back in, which is a regression rather than a fix.
+//
+// Offline and reads no secrets. Whether an item of that name actually exists in
+// QuickBooks is a question only QuickBooks can answer, and /qbo/verify-items
+// answers it.
 //
 // IMPORTANT: Cloudflare's Git integration runs `wrangler deploy` directly, so a
 // push to main does NOT run this. That is why worker/programs.ts re-checks at
@@ -51,9 +55,10 @@ for (const r of rows) {
     state = `BROKEN    ${problem}`;
     errors.push(`${key}: payUrl ${problem}`);
   } else if (option.payUrl === null) {
-    // Not an error. Every one being empty is the normal state right now, and the
-    // site already handles it by showing "the office will follow up".
-    state = 'not set   no link yet';
+    // The finished state. Links were retired on 2026-08-05 once invoices were
+    // proven; see the header of worker/programs.ts for why pasting one back is a
+    // regression rather than a fix.
+    state = 'retired   invoiced instead';
   } else {
     state = `ok        ${option.payUrl}`;
     if (hasUnexpectedPayHost(option)) {
@@ -64,11 +69,13 @@ for (const r of rows) {
 
   console.log(`  ${pad(key, w)}${pad(price, 10)}${state}`);
 
-  if (isPayable(option) !== (problem === null && option.payUrl !== null)) {
-    // Guards the two helpers against drifting apart; they are used in different
-    // places and disagreeing would mean the form offers payment the route then
-    // refuses to deliver.
-    errors.push(`${key}: isPayable disagrees with payUrlProblem — that is a bug in programs.ts, not in the link`);
+  // Payable now means "an invoice can be raised" — a price to charge and an item
+  // to book it to — or a valid legacy link. It used to mean only the second, and
+  // this assertion is what caught the change.
+  const invoiceable = option.qboItem !== null && typeof option.price === 'number';
+  const linkable = option.payUrl !== null && problem === null;
+  if (isPayable(option) !== (invoiceable || linkable)) {
+    errors.push(`${key}: isPayable disagrees with the catalog — that is a bug in programs.ts`);
   }
   if (!option.id || !option.label) {
     errors.push(`${key}: every option needs an id and a label`);
@@ -131,7 +138,10 @@ console.log(`\n  ${withItem} of ${rows.length} options are mapped to a QuickBook
 console.log('  Run /qbo/verify-items to confirm those names exist in QuickBooks.');
 
 const payable = rows.filter((r) => isPayable(r.option)).length;
-console.log(`\n  ${payable} of ${rows.length} payment links are set up.`);
+console.log(`\n  ${payable} of ${rows.length} options can be paid for.`);
+for (const r of rows.filter((x) => x.option.payUrl !== null)) {
+  warnings.push(`${r.key} still has a static payUrl. Links were retired once invoices were proven — a parent reaching one pays an amount that applies to no invoice, which is the problem invoices removed. See the header of worker/programs.ts.`);
+}
 
 for (const warning of warnings) console.log(`\n  WARNING  ${warning}`);
 

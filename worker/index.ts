@@ -219,92 +219,6 @@ export default {
         }
         return json({ incomeAccountId, created, alreadyThere });
       }
-      // Exercises the failure paths in bookInQuickBooks against the real API,
-      // because until something does, the catch block that protects every
-      // enrolment has never once executed. "It should fall back" is a claim
-      // about untested code; this turns it into an observation.
-      //
-      // Sandbox only. It books a real invoice for the healthy case.
-      if (request.method === 'GET' && pathname === '/qbo/test-fallback') {
-        requireAdmin(url, env);
-        if (!qboConfigured(env)) return text(QBO_NOT_CONFIGURED, 503);
-        if (env.QBO_SANDBOX !== 'true') {
-          return text('Refused: QBO_SANDBOX is not "true". This route writes real records.', 403);
-        }
-
-        const program = lookupProgram('shredders');
-        const healthy = program?.options.find((o) => o.id === 'drop-in');
-        if (!program || !healthy) return text('Catalog changed — fix /qbo/test-fallback.', 500);
-
-        const row = {
-          parent_name: 'Fallback Probe',
-          parent_email: 'fallback+qbotest@example.test',
-          phone: null,
-          player_name: 'Probe Player',
-          age_group: '9-16'
-        };
-
-        const cases = [
-          { case: 'item name missing from QuickBooks', option: { ...healthy, qboItem: 'No Such Item 000' } },
-          { case: 'option has no item mapped', option: { ...healthy, qboItem: null } },
-          { case: 'healthy', option: healthy }
-        ];
-
-        const results = [];
-        for (const c of cases) {
-          const r = await bookInQuickBooks(env, program, c.option as any, row);
-          results.push({
-            case: c.case,
-            route: r.route,
-            // The point of the whole exercise: a failure must still leave the
-            // parent somewhere they can pay.
-            parentCanStillPay: r.payUrl !== null,
-            invoiceId: r.invoiceId
-          });
-        }
-        return json({
-          expected: {
-            'item name missing from QuickBooks': 'static-link, parentCanStillPay true, no invoice',
-            'option has no item mapped': 'static-link, parentCanStillPay true, no invoice',
-            healthy: 'sandbox, parentCanStillPay true, invoice created'
-          },
-          results
-        });
-      }
-      // Read-only, and safe against the real company file, unlike seed-items.
-      // Run it before the switch to see what the academy's income accounts are
-      // actually called, so `?account=` is copied rather than guessed. Katie
-      // said "7010 Income", which is a display string, not necessarily a name.
-      if (request.method === 'GET' && pathname === '/qbo/income-accounts') {
-        requireAdmin(url, env);
-        if (!qboConfigured(env)) return text(QBO_NOT_CONFIGURED, 503);
-        const accounts = await listIncomeAccounts(env);
-        return json(accounts.map((a: any) => ({
-          id: a.Id, name: a.Name, acctNum: a.AcctNum ?? null,
-          fullyQualifiedName: a.FullyQualifiedName
-        })));
-      }
-      // Re-reads the pay page for an invoice that already exists. Read-only.
-      //
-      // The link reaches the parent once, in the /api/enroll response, and is
-      // never stored — we keep the invoice id instead, because the id is what
-      // reconciles and the URL is just a way to reach it. This is how you get
-      // the URL back: a closed tab, an abandoned checkout the office wants to
-      // chase, or a test invoice somebody else has to pay.
-      if (request.method === 'GET' && pathname === '/qbo/invoice-link') {
-        requireAdmin(url, env);
-        if (!qboConfigured(env)) return text(QBO_NOT_CONFIGURED, 503);
-        const id = url.searchParams.get('id')?.trim();
-        if (!id) return text('Pass ?id= with the invoice number or internal id.', 400);
-        try {
-          return json(await getInvoice(env, id));
-        } catch (err) {
-          // Surfaced rather than left to the generic handler. This route is
-          // admin-gated and exists for diagnosis, and "Internal error" is the
-          // least useful thing it could say to the one person able to act on it.
-          return json({ error: String(err instanceof Error ? err.message : err) }, 502);
-        }
-      }
       // Every qboItem in the catalog, checked against what actually exists in
       // QuickBooks. Read-only, and the answer to the one failure this design can
       // suffer: Katie types an item name slightly differently and enrollment
@@ -591,19 +505,6 @@ async function bookInQuickBooks(
     return useStaticLink();
   }
 
-  // While pointed at the sandbox, only OUR test enrolments go to QuickBooks. A
-  // real family signing up in the meantime would otherwise have their name and
-  // email written into a throwaway company they have no relationship with, and
-  // wait an extra second for the privilege. They get the old behaviour instead,
-  // unchanged and working.
-  //
-  // The marker is a plus-address, so a test can be run from the real form with a
-  // real inbox: lukas.nilsson4321+qbotest@gmail.com. Delete this whole branch
-  // when QBO_SANDBOX goes to "false".
-  if (env.QBO_SANDBOX === 'true' && !/\+qbotest@/i.test(row.parent_email)) {
-    return useStaticLink();
-  }
-
   let timedOut = false;
   try {
     const work = (async () => {
@@ -641,24 +542,6 @@ async function bookInQuickBooks(
         setTimeout(() => { timedOut = true; reject(new Error('QuickBooks timed out')); },
           QBO_ENROLL_TIMEOUT_MS))
     ]);
-
-    // In sandbox the invoice is real but the company file is not, and its pay
-    // link goes to Intuit's placeholder page. A parent sent there cannot pay and
-    // has no way to know why. So the invoice still gets raised — that is what
-    // makes the flow testable — but the parent goes to the working static link,
-    // exactly as they did before any of this existed.
-    //
-    // This is what makes it safe to run the invoice flow on the live site while
-    // still pointed at a sandbox. Remove nothing here until QBO_SANDBOX is
-    // "false" and the real company file is connected.
-    if (env.QBO_SANDBOX === 'true') {
-      return {
-        payUrl: staticUrl,
-        route: staticUrl ? 'sandbox' : 'none',
-        customerId,
-        invoiceId: invoice.invoiceId
-      };
-    }
 
     return {
       payUrl: invoice.payLink,

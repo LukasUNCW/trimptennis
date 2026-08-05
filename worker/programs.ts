@@ -1,21 +1,26 @@
 // worker/programs.ts
 // Program catalog — the single place that knows what's enrollable, what it
-// costs, and where to send a parent to pay.
+// costs, and which QuickBooks item it books to.
 //
-// A QuickBooks payment link carries its amount INSIDE the link, so this site
-// cannot tell QuickBooks what to charge. That one fact drives the shape of this
-// file: a program with three prices needs three links, so links hang off price
-// options rather than off programs. Katie creates one multi-use link per option
-// in QuickBooks (All apps → Sales & Get Paid → Payment links) and pastes the
-// URL here.
+// HOW PAYMENT WORKS NOW. An enrolment raises a real invoice against a real
+// customer in the academy's QuickBooks, and the parent is sent to that
+// invoice's own pay page. See docs/QBO-INTEGRATION.md.
 //
-// The links must be MULTI-USE. A single-use link stops working after the first
-// parent pays it, and every parent enrolling in a program is sent to the same
-// URL.
+// Every payUrl is null, and that is the finished state rather than an unfinished
+// one. They used to hold multi-use QuickBooks payment links, which carried their
+// amount inside the URL and could say nothing about who was paying — so money
+// arrived as an anonymous figure that somebody had to attribute by hand. They
+// were retired on 2026-08-05, once a real card payment had been watched landing
+// on a real invoice.
 //
-// An option with payUrl === null is not yet purchasable: /api/enroll still saves
-// the enrollment and notifies the office, but the site shows a "we'll call you
-// to take payment" path instead of redirecting.
+// DO NOT paste them back in to "fix" a QuickBooks outage. A parent reaching a
+// shared link pays an amount that applies to no invoice, which is the precise
+// problem this replaced. If invoices cannot be raised, the right answer is the
+// one the site already gives: record the enrolment, tell the parent the office
+// will follow up, and email the office to say so.
+//
+// The link machinery below stays because it still guards anything ever pasted
+// back deliberately, and because npm run check:programs uses it.
 
 export interface PriceOption {
   /**
@@ -130,16 +135,16 @@ export const PROGRAMS: Record<string, Program> = {
     ageGroups: ['6-12'],
     picksDays: true,
     options: [
-      { id: 'standard', label: '10 week term', price: 250, qboItem: "Groms Tennis", payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-f4a24dfac7ce46a48793ebfee81826cfc1ac205d73b24e6a9343cae86897f2354c4e880a9ebb416c83487747896e4795?locale=EN_US&cta=saveandcopylink' }
+      { id: 'standard', label: '10 week term', price: 250, qboItem: "Groms Tennis", payUrl: null }
     ]
   },
   shredders: {
     name: "Shredder's",
     ageGroups: ['9-16'],
     options: [
-      { id: '8x-month',  label: '8 classes / month',  price: 240, qboItem: "Shredder's 8x/mo.", payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-dcab8ea1fc914441bc783968ec6ccf8c77b53ad8572e49fb92b68d424252da275f077e97801844e59829101c8bb46d68?locale=EN_US&cta=saveandcopylink' },
-      { id: '12x-month', label: '12 classes / month', price: 330, qboItem: "Shredder's 12x/mo.", payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-f77d0594914a48d7b316e2425349ffd1578d6d1f29d4499682a59460e283f2610d0186ab339f449f87dfe80b23be787f?locale=EN_US&cta=saveandcopylink' },
-      { id: 'drop-in',   label: 'Drop-in',            price: 35,  qboItem: "Shredder's drop in", payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-f4e0fc27cd224867b0a60db0fe508ccf508514924d6d41419a55a1701e85e8e908bb400938514a7d98ee178af374f1aa?locale=EN_US&cta=saveandcopylink' }
+      { id: '8x-month',  label: '8 classes / month',  price: 240, qboItem: "Shredder's 8x/mo.", payUrl: null },
+      { id: '12x-month', label: '12 classes / month', price: 330, qboItem: "Shredder's 12x/mo.", payUrl: null },
+      { id: 'drop-in',   label: 'Drop-in',            price: 35,  qboItem: "Shredder's drop in", payUrl: null }
     ]
   },
   'summer-camp': {
@@ -165,12 +170,12 @@ export const PROGRAMS: Record<string, Program> = {
     name: 'Elite Academy',
     ageGroups: ['10-18'],
     options: [
-      { id: '8x-month',  label: '8 classes / month — first month',  price: 320, qboItem: 'Elite Academy 8x/mo. -First Month', payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-a83e0d0de2e74102a72ff6b102f4e0be98873bb9b0084ffeb89db13d5622b587d007dc7ac227490d9ec8fa204332d7a4?locale=EN_US&cta=saveandcopylink', autoDraftAfterFirstMonth: true },
-      { id: '12x-month', label: '12 classes / month — first month', price: 420, qboItem: 'Elite Academy 12x/mo. -First Month', payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-a7aa5450e4d24b0bbd2c1d1817e2c725747ffa4501a54ec4bca5c74414de2ee39611db4b5dde4978bee4130cce76a79f?locale=EN_US&cta=saveandcopylink', autoDraftAfterFirstMonth: true },
+      { id: '8x-month',  label: '8 classes / month — first month',  price: 320, qboItem: 'Elite Academy 8x/mo. -First Month', payUrl: null, autoDraftAfterFirstMonth: true },
+      { id: '12x-month', label: '12 classes / month — first month', price: 420, qboItem: 'Elite Academy 12x/mo. -First Month', payUrl: null, autoDraftAfterFirstMonth: true },
       // Deliberately no auto-draft follow-up: a drop-in is not a first month.
       // Katie: "a stand alone thing... when they know they are coming to class
       // they can click on the link and pay".
-      { id: 'drop-in',   label: 'Drop-in',                          price: 45,  qboItem: 'Elite Academy Drop In Class', payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-be458f88c1044b83b925d399e6157c4acebbf77ba93f47bca9d63610b1d0424824671f08db714caa8a9bb7e8f4827625?locale=EN_US&cta=saveandcopylink' }
+      { id: 'drop-in',   label: 'Drop-in',                          price: 45,  qboItem: 'Elite Academy Drop In Class', payUrl: null }
     ]
   },
   adult: {
@@ -291,9 +296,24 @@ export function payUrlProblem(o: PriceOption): string | null {
     ?? (DUPLICATE_PAY_URLS.has(o.payUrl) ? 'is also used by another option' : null);
 }
 
-/** True when a parent can actually be sent somewhere to pay for this option. */
+/**
+ * True when a parent can actually be sent somewhere to pay for this option.
+ *
+ * The meaning of this changed when invoices replaced the shared payment links.
+ * It used to mean "somebody pasted a URL here". It now means "an invoice can be
+ * raised", which needs a price to charge and a QuickBooks item to book it to.
+ *
+ * Getting this wrong is not subtle: the enrol dialog reads it to decide whether
+ * to say "the office will confirm the price and take payment by phone". Leaving
+ * it keyed to payUrl after retiring the links would have told every parent, on
+ * every program, that nobody could take their money.
+ *
+ * A valid payUrl still counts, so an option can be sold the old way if one is
+ * ever pasted back in.
+ */
 export const isPayable = (o: PriceOption): boolean =>
-  o.payUrl !== null && payUrlProblem(o) === null;
+  (o.qboItem !== null && typeof o.price === 'number')
+  || (o.payUrl !== null && payUrlProblem(o) === null);
 
 /** True when the host is not one payment links are expected on — advisory only. */
 export const hasUnexpectedPayHost = (o: PriceOption): boolean => {
