@@ -427,8 +427,52 @@ export async function createServiceItem(
  * that company file. The invoice is still real.
  */
 export async function getInvoiceLink(env: Env, invoiceId: string): Promise<string | null> {
+  return (await getInvoice(env, invoiceId)).payLink;
+}
+
+export interface InvoiceState {
+  id: string;
+  /** The number a human sees. Blank when custom transaction numbers were on. */
+  number: string | null;
+  customer: string | null;
+  total: number | null;
+  /** 0 means settled. This is the only field that answers "did they pay?" */
+  balance: number | null;
+  paid: boolean;
+  /**
+   * Payments and credits attached to this invoice. An empty list next to a zero
+   * balance would mean the invoice was written off rather than paid.
+   */
+  linked: Array<{ id: string; type: string }>;
+  payLink: string | null;
+}
+
+/**
+ * What actually happened to an invoice.
+ *
+ * Written for one question that turned out to be hard to answer any other way:
+ * did a payment land ON this invoice, or merely near it? Money arriving in the
+ * bank proves neither, and an unapplied payment sitting beside an open invoice
+ * is exactly the state this whole project exists to stop producing.
+ *
+ * Balance zero with a linked payment is the answer. Either one alone is not.
+ */
+export async function getInvoice(env: Env, invoiceId: string): Promise<InvoiceState> {
   const res = await qboFetch(env, `/invoice/${encodeURIComponent(invoiceId)}?include=invoiceLink`);
-  return res.Invoice?.InvoiceLink ?? null;
+  const inv = res.Invoice ?? {};
+  const balance = typeof inv.Balance === 'number' ? inv.Balance : null;
+  return {
+    id: String(inv.Id ?? invoiceId),
+    number: inv.DocNumber ?? null,
+    customer: inv.CustomerRef?.name ?? inv.CustomerRef?.value ?? null,
+    total: typeof inv.TotalAmt === 'number' ? inv.TotalAmt : null,
+    balance,
+    paid: balance === 0,
+    linked: (inv.LinkedTxn ?? []).map((t: any) => ({
+      id: String(t.TxnId ?? ''), type: String(t.TxnType ?? '')
+    })),
+    payLink: inv.InvoiceLink ?? null
+  };
 }
 
 export interface CustomerInput {

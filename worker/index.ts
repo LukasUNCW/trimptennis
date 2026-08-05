@@ -28,7 +28,7 @@ import { PROGRAMS, lookupProgram, lookupOption, listPrograms, payUrlFor, isEnrol
 import {
   buildAuthUrl, exchangeCodeForTokens, listItems, qboConfigured, consumeState,
   findOrCreateCustomer, findItemIdByName, createInvoice,
-  findIncomeAccountId, createServiceItem, listIncomeAccounts, getInvoiceLink
+  findIncomeAccountId, createServiceItem, listIncomeAccounts, getInvoiceLink, getInvoice
 } from './qbo';
 import { listSessions, claimSessions } from './sessions';
 import { adminPage, adminCsv } from './admin';
@@ -296,8 +296,7 @@ export default {
         if (!qboConfigured(env)) return text(QBO_NOT_CONFIGURED, 503);
         const id = url.searchParams.get('id')?.trim();
         if (!id) return text('Pass ?id= with the QuickBooks invoice number.', 400);
-        const link = await getInvoiceLink(env, id);
-        return json({ invoiceId: id, payLink: link, payLinkPresent: link !== null });
+        return json(await getInvoice(env, id));
       }
       // Every qboItem in the catalog, checked against what actually exists in
       // QuickBooks. Read-only, and the answer to the one failure this design can
