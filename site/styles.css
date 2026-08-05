@@ -512,3 +512,46 @@ footer{background:var(--navy);color:#B9C6D9;padding:64px 0 40px;font-size:14.5px
 }
 .child-btn.quiet{border-color:var(--line);color:var(--navy)}
 .child-btn.quiet:hover{background:var(--navy);border-color:var(--navy);color:#fff}
+
+/* ── day picker (Grom's) ──────────────────────────────────────────────────
+   One row per weekday rather than a grid: there are four of them, the labels
+   are short, and a column reads faster than a wrap. Full days stay visible and
+   disabled, because a parent who came for Wednesdays should be told Wednesday
+   is full rather than left wondering where it went. */
+.enroll .field-label {
+  display: block;
+  font-weight: 700;
+  font-size: .95rem;
+  margin-bottom: 6px;
+}
+.day-picker { display: grid; gap: 8px; }
+.day-opt {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #D5DCE5;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.day-opt:hover:not(.is-full) { border-color: #077A78; }
+.day-opt input { accent-color: #077A78; }
+.day-name { font-weight: 600; }
+.day-time { color: #5A6B80; font-size: .88rem; }
+.day-left {
+  font-size: .85rem;
+  color: #077A78;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* Full days are dimmed but still legible: this is information, not decoration,
+   and greying it to invisibility just makes people ask the office. */
+.day-opt.is-full { background: #F4F6F9; border-color: #E2E7EE; cursor: not-allowed; }
+.day-opt.is-full .day-name,
+.day-opt.is-full .day-time { color: #8A97A8; }
+.day-opt.is-full .day-left { color: #A8434B; font-weight: 600; }
+@media (max-width: 420px) {
+  .day-opt { grid-template-columns: auto 1fr; }
+  .day-left { grid-column: 2; }
+}

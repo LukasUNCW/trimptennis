@@ -36,6 +36,17 @@
         <p class="field-note" id="ef-option-note"></p>
       </div>
 
+      <!-- Grom's runs Monday to Thursday and the parent chooses which days. Each
+           weekday is its own class of 18, so a full Monday says nothing about
+           Wednesday. Counts are read when the dialog opens, not when the page
+           loaded, because a tab left open overnight would otherwise offer a day
+           that filled hours ago. -->
+      <div class="field" id="ef-days-wrap" hidden>
+        <span class="field-label">Which days? <span class="req">*</span></span>
+        <div class="day-picker" id="ef-days"></div>
+        <p class="field-note" id="ef-days-note"></p>
+      </div>
+
       <div class="field" id="ef-saved-wrap" hidden>
         <label for="ef-saved">Who is playing?</label>
         <select id="ef-saved"></select>
@@ -123,6 +134,9 @@
   const savedWrap   = document.getElementById('ef-saved-wrap');
   const savedSel    = document.getElementById('ef-saved');
   const optionWrap  = document.getElementById('ef-option-wrap');
+  const daysWrap    = document.getElementById('ef-days-wrap');
+  const daysBox     = document.getElementById('ef-days');
+  const daysNote    = document.getElementById('ef-days-note');
   const optionSel   = document.getElementById('ef-option');
   const optionNote  = document.getElementById('ef-option-note');
   const review      = document.getElementById('enrollReview');
@@ -186,6 +200,61 @@
       : '';
   }
 
+  /**
+   * Loads the weekdays for a program and draws them as checkboxes.
+   *
+   * Places remaining rather than places taken: "3 left" is a decision, "15 of
+   * 18" is arithmetic. A full day stays visible but disabled, because a parent
+   * who came for Wednesdays should learn that Wednesday is full rather than
+   * wonder why it is missing.
+   *
+   * A failure here does not hide the picker or block the form. The days are
+   * required, so the honest outcome is to say the list could not be loaded and
+   * let the parent retry, rather than silently let them enrol into no class.
+   */
+  async function loadDays(p) {
+    const picks = p?.picksDays === true;
+    daysWrap.hidden = !picks;
+    if (!picks) { daysBox.innerHTML = ''; daysNote.textContent = ''; return; }
+
+    daysBox.innerHTML = '<p class="field-note">Loading days…</p>';
+    daysNote.textContent = '';
+
+    let sessions;
+    try {
+      const res = await fetch(`/api/sessions?program=${encodeURIComponent(p.slug)}`);
+      if (!res.ok) throw new Error();
+      sessions = await res.json();
+    } catch {
+      daysBox.innerHTML = '';
+      daysNote.textContent = 'Could not load the days just now — please refresh and try again.';
+      return;
+    }
+
+    if (!sessions.length) {
+      daysBox.innerHTML = '';
+      daysNote.textContent = 'No days are open for booking yet — please contact the office.';
+      return;
+    }
+
+    daysBox.innerHTML = sessions.map((s) => `
+      <label class="day-opt${s.full ? ' is-full' : ''}">
+        <input type="checkbox" value="${esc(s.id)}"${s.full ? ' disabled' : ''}>
+        <span class="day-name">${esc(s.weekday)}</span>
+        ${s.timeLabel ? `<span class="day-time">${esc(s.timeLabel)}</span>` : ''}
+        <span class="day-left">${s.full
+          ? 'Full'
+          : `${s.remaining} place${s.remaining === 1 ? '' : 's'} left`}</span>
+      </label>`).join('');
+
+    daysNote.textContent = sessions.every((s) => s.full)
+      ? 'Every day is full at the moment — please contact the office about the waiting list.'
+      : 'Same price whichever days you choose.';
+  }
+
+  const chosenDays = () =>
+    [...daysBox.querySelectorAll('input[type=checkbox]:checked')].map((c) => c.value);
+
   // Age groups are per-program, so they refill whenever the program changes.
   // Adult programs also drop the guardian field entirely — the person signing
   // up is the player, so asking for a parent makes no sense there.
@@ -193,6 +262,7 @@
     const p = programs?.find((x) => x.slug === progSel.value);
     const groups = p?.ageGroups ?? [];
     syncOptions(p);
+    loadDays(p);
     ageSel.innerHTML = groups.length
       ? groups.map((g) => `<option value="${g}">${g}</option>`).join('')
       : '<option value="">Choose a program first</option>';
@@ -320,6 +390,10 @@
     const rows = [
       ['Program', esc(data.program)],
       ['Option', esc(data.option?.label)],
+      // Echoed back from what was actually claimed, not from the checkboxes, so
+      // the last thing a parent reads before paying is the places they really
+      // hold.
+      ...(data.days?.length ? [['Days', esc(data.days.join(', '))]] : []),
       ['Player', esc(data.playerName)],
       ['Amount', `<span class="review-price">${price}</span>`]
     ];
@@ -393,7 +467,8 @@
       parent_name:  document.getElementById('ef-parent').value,
       parent_email: document.getElementById('ef-email').value,
       phone:        document.getElementById('ef-phone').value,
-      notes:        document.getElementById('ef-notes').value
+      notes:        document.getElementById('ef-notes').value,
+      days:         daysWrap.hidden ? undefined : chosenDays()
     };
 
     const selfEnroll = programs?.find((p) => p.slug === body.program)?.selfEnroll === true;
@@ -403,6 +478,8 @@
                                           return showErr('Please choose which option you want.');
     if (!body.player_name.trim())         return showErr(selfEnroll ? 'Please enter your name.' : "Please enter the player's name.");
     if (!body.age_group)                  return showErr('Please choose an age group.');
+    if (!daysWrap.hidden && body.days.length === 0)
+                                          return showErr('Please choose at least one day.');
     if (!selfEnroll && !body.parent_name.trim())
                                           return showErr('Please enter a parent or guardian name.');
     if (!body.parent_email.includes('@')) return showErr('Please enter a valid email address.');
@@ -429,6 +506,14 @@
       submitBt.disabled = false;
       submitBt.textContent = 'Continue to payment';
       window.turnstile.reset(widgetId);   // tokens are single-use
+      // A day that filled while this form was open is the one error where the
+      // numbers on screen are now wrong, so redraw them. Telling somebody
+      // "Monday just filled up" above a checkbox still offering Monday reads as
+      // a broken site rather than a busy class.
+      if (data?.full?.length) {
+        const p = programs?.find((x) => x.slug === progSel.value);
+        loadDays(p);
+      }
       return showErr(err.message === 'Failed to fetch'
         ? 'Network problem — please check your connection and try again.'
         : err.message);
