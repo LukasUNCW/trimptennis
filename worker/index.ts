@@ -31,6 +31,7 @@ import {
   findIncomeAccountId, createServiceItem, listIncomeAccounts, getInvoiceLink
 } from './qbo';
 import { listSessions, claimSessions } from './sessions';
+import { adminPage, adminCsv } from './admin';
 import { notifyEnrollment, notifyInquiry, sendMagicLink } from './email';
 import {
   normaliseEmail, isRateLimited, createLoginToken, redeemLoginToken,
@@ -110,6 +111,18 @@ export default {
         }
       }
 
+      // The office roster. Read-only, and gated by ADMIN_KEY like /qbo/*, which
+      // is adequate for one person checking a register and not adequate for what
+      // this page holds. See the header of worker/admin.ts: before routine office
+      // use this belongs behind Cloudflare Access.
+      if (request.method === 'GET' && pathname === '/admin') {
+        requireAdmin(url, env);
+        return await adminPage(env, url.searchParams.get('key') ?? '');
+      }
+      if (request.method === 'GET' && pathname === '/admin/roster.csv') {
+        requireAdmin(url, env);
+        return await adminCsv(env);
+      }
       if (request.method === 'GET' && pathname === '/qbo/connect') {
         requireAdmin(url, env);
         if (!qboConfigured(env)) return text(QBO_NOT_CONFIGURED, 503);
