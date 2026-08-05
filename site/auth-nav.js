@@ -26,6 +26,14 @@
     const who = user.first_name || (user.email || '').split('@')[0];
     nav.innerHTML =
       '<span>Hi ' + who.replace(/[<>&"]/g, '') + '</span>' +
+      // Staff only. Read off the account, which is what signedIn() is handed —
+      // the sibling isAdmin on the /api/me envelope is not in scope here, and
+      // reading it would silently never show the tab.
+      //
+      // The link appearing is a convenience, not the control: the Worker checks
+      // is_admin on the request itself, so pasting /admin without the flag gets
+      // a 401 whether or not a tab was ever drawn.
+      (user.is_admin === 1 ? '<a href="/admin"><b>Admin</b></a>' : '') +
       '<a href="/account">My account</a>' +
       '<a href="#" id="authLogout">Log out</a>';
 

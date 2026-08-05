@@ -22,6 +22,8 @@ export interface SessionUser {
   email: string;
   first_name: string | null;
   last_name: string | null;
+  /** Staff. Read fresh from the account on every request, never from the cookie. */
+  is_admin: boolean;
 }
 
 // ── primitives ───────────────────────────────────────────────────────────
@@ -141,12 +143,17 @@ export async function getSessionUser(env: Env, request: Request): Promise<Sessio
 
   const row = await env.DB
     .prepare(
-      `SELECT s.expires_at, a.id AS account_id, a.email, a.first_name, a.last_name
+      // is_admin is read here, on every request, rather than being baked into
+      // the session at sign-in. Revoking staff access is then a single UPDATE
+      // that takes effect on the next click, instead of waiting out however long
+      // that person's session has left.
+      `SELECT s.expires_at, a.id AS account_id, a.email, a.first_name, a.last_name, a.is_admin
        FROM sessions s JOIN accounts a ON a.id = s.account_id
        WHERE s.id = ?1`
     )
     .bind(id)
-    .first<{ expires_at: number; account_id: string; email: string; first_name: string | null; last_name: string | null }>();
+    .first<{ expires_at: number; account_id: string; email: string; first_name: string | null;
+             last_name: string | null; is_admin: number }>();
 
   if (!row) return null;
   if (row.expires_at < Date.now()) {
@@ -157,7 +164,8 @@ export async function getSessionUser(env: Env, request: Request): Promise<Sessio
     account_id: row.account_id,
     email: row.email,
     first_name: row.first_name,
-    last_name: row.last_name
+    last_name: row.last_name,
+    is_admin: row.is_admin === 1
   };
 }
 

@@ -131,7 +131,15 @@ CREATE TABLE IF NOT EXISTS accounts (
   state TEXT,
   zip TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  last_login_at TEXT
+  last_login_at TEXT,
+  -- Staff. Set by hand in the database, never by anything the site exposes:
+  -- there is no route that grants it and no form that sets it, so the only way
+  -- to become an admin is for somebody with database access to say so.
+  --
+  -- This is authorisation, not authentication. Sign-in is the same single-use
+  -- emailed link every parent uses, so an admin still has no password to leak.
+  -- All this flag decides is what an already-proven identity may see.
+  is_admin INTEGER NOT NULL DEFAULT 0
 );
 
 -- birth_year rather than a full date: enough to derive the age group, stays

@@ -111,17 +111,29 @@ export default {
         }
       }
 
-      // The office roster. Read-only, and gated by ADMIN_KEY like /qbo/*, which
-      // is adequate for one person checking a register and not adequate for what
-      // this page holds. See the header of worker/admin.ts: before routine office
-      // use this belongs behind Cloudflare Access.
-      if (request.method === 'GET' && pathname === '/admin') {
-        requireAdmin(url, env);
-        return await adminPage(env, url.searchParams.get('key') ?? '');
-      }
-      if (request.method === 'GET' && pathname === '/admin/roster.csv') {
-        requireAdmin(url, env);
-        return await adminCsv(env);
+      // The office roster. Two ways in, and the difference matters.
+      //
+      // A signed-in account with is_admin set is the one meant for the office:
+      // Katie clicks a link in her inbox, gets a session, and the Admin tab
+      // appears. No password exists to leak, nothing sensitive travels in a URL,
+      // and revoking her is one UPDATE.
+      //
+      // ADMIN_KEY still works, because it is what a script or a cold debugging
+      // session has, and because locking myself out of the roster while fixing
+      // the roster would be a poor arrangement. It is the weaker path: it puts a
+      // long-lived secret in a URL, and URLs end up in history, screenshots and
+      // chat windows. Prefer the session.
+      if (request.method === 'GET' && (pathname === '/admin' || pathname === '/admin/roster.csv')) {
+        const user = await getSessionUser(env, request);
+        if (!user?.is_admin) {
+          // Only fall back to the key when there is no admin session, so a
+          // signed-in non-admin cannot widen their own access by appending one
+          // they happened to see.
+          requireAdmin(url, env);
+        }
+        return pathname === '/admin'
+          ? await adminPage(env, url.searchParams.get('key') ?? '')
+          : await adminCsv(env);
       }
       if (request.method === 'GET' && pathname === '/qbo/connect') {
         requireAdmin(url, env);
@@ -677,7 +689,8 @@ async function loadMe(env: Env, request: Request) {
 
   const account = await env.DB
     .prepare(
-      `SELECT id, email, first_name, last_name, phone, address1, address2, city, state, zip
+      `SELECT id, email, first_name, last_name, phone, address1, address2, city, state, zip,
+              is_admin
        FROM accounts WHERE id = ?1`
     )
     .bind(user.account_id)
@@ -691,7 +704,14 @@ async function loadMe(env: Env, request: Request) {
     .bind(user.account_id)
     .all<Record<string, unknown>>();
 
-  return { account, children: children.results };
+  // isAdmin is surfaced as a boolean of its own rather than left as the raw
+  // column, so the nav has one obvious thing to read and nobody has to remember
+  // that 0 and 1 are the values.
+  return {
+    account,
+    children: children.results,
+    isAdmin: account?.is_admin === 1
+  };
 }
 
 const noStore = (data: unknown, status = 200) =>
