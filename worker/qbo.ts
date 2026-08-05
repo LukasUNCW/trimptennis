@@ -457,12 +457,41 @@ export interface InvoiceState {
  *
  * Balance zero with a linked payment is the answer. Either one alone is not.
  */
-export async function getInvoice(env: Env, invoiceId: string): Promise<InvoiceState> {
-  const res = await qboFetch(env, `/invoice/${encodeURIComponent(invoiceId)}?include=invoiceLink`);
-  const inv = res.Invoice ?? {};
+export async function getInvoice(env: Env, invoiceRef: string): Promise<InvoiceState> {
+  // Accepts either the internal Id or the number a human reads off the invoice.
+  //
+  // These are different, and confusingly so: our enrolments store Id (29453),
+  // while QuickBooks, the pay page and Katie all say DocNumber (15463). Anyone
+  // holding an invoice has the second one, so looking up only the first turns a
+  // reasonable request into an error about a record that does exist.
+  let inv: any = null;
+
+  try {
+    const res = await qboFetch(env, `/invoice/${encodeURIComponent(invoiceRef)}?include=invoiceLink`);
+    inv = res.Invoice ?? null;
+  } catch {
+    // Falls through to the number lookup rather than reporting a miss: an Id
+    // that does not resolve is the expected case when somebody passed a number.
+  }
+
+  if (!inv) {
+    const q = encodeURIComponent(`select * from Invoice where DocNumber = '${qq(invoiceRef)}'`);
+    const res = await qboFetch(env, `/query?query=${q}`);
+    const found = res.QueryResponse?.Invoice?.[0];
+    if (!found) {
+      throw new Error(
+        `No invoice with id or number "${invoiceRef}". Note these differ: our ` +
+        `enrolment rows store the internal id, QuickBooks shows the number.`
+      );
+    }
+    // The query response carries no InvoiceLink, so re-read by the real id to
+    // get one. Cheap, and it keeps the shape identical either way in.
+    const full = await qboFetch(env, `/invoice/${encodeURIComponent(found.Id)}?include=invoiceLink`);
+    inv = full.Invoice ?? found;
+  }
   const balance = typeof inv.Balance === 'number' ? inv.Balance : null;
   return {
-    id: String(inv.Id ?? invoiceId),
+    id: String(inv.Id ?? invoiceRef),
     number: inv.DocNumber ?? null,
     customer: inv.CustomerRef?.name ?? inv.CustomerRef?.value ?? null,
     total: typeof inv.TotalAmt === 'number' ? inv.TotalAmt : null,

@@ -295,8 +295,15 @@ export default {
         requireAdmin(url, env);
         if (!qboConfigured(env)) return text(QBO_NOT_CONFIGURED, 503);
         const id = url.searchParams.get('id')?.trim();
-        if (!id) return text('Pass ?id= with the QuickBooks invoice number.', 400);
-        return json(await getInvoice(env, id));
+        if (!id) return text('Pass ?id= with the invoice number or internal id.', 400);
+        try {
+          return json(await getInvoice(env, id));
+        } catch (err) {
+          // Surfaced rather than left to the generic handler. This route is
+          // admin-gated and exists for diagnosis, and "Internal error" is the
+          // least useful thing it could say to the one person able to act on it.
+          return json({ error: String(err instanceof Error ? err.message : err) }, 502);
+        }
       }
       // Every qboItem in the catalog, checked against what actually exists in
       // QuickBooks. Read-only, and the answer to the one failure this design can
