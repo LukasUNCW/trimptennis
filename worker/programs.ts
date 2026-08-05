@@ -49,11 +49,16 @@ export interface PriceOption {
    * difference in spacing or punctuation is a different item and the lookup
    * fails.
    *
-   * Plain hyphens and straight apostrophes only, deliberately. These names get
-   * typed into QuickBooks by hand, and an em dash is the kind of character
-   * nobody reproduces from a keyboard. Pasting is still safer than retyping,
-   * and `/qbo/verify-items` reports anything that does not resolve, so a
-   * mismatch is caught by us rather than by a parent mid-enrollment.
+   * These are the academy's OWN item names, not ones invented here. Their
+   * company file already tracked every program, and creating a parallel set
+   * would split each program across two lines in every report depending on
+   * whether the sale came through the site or the office invoiced it by hand.
+   * Their names win, however they are punctuated.
+   *
+   * So do not tidy these. "Shredder's 8x/mo." is not a typo, and neither is the
+   * missing apostrophe in "Groms Tennis". `/qbo/verify-items` reports anything
+   * that does not resolve, so a mismatch is caught by us rather than by a parent
+   * mid-enrollment.
    *
    * null for an option nobody can buy yet.
    */
@@ -111,16 +116,16 @@ export const PROGRAMS: Record<string, Program> = {
     name: "Grom's",
     ageGroups: ['6-12'],
     options: [
-      { id: 'standard', label: '10 classes', price: 250, qboItem: "Grom's - 10 classes", payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-f4a24dfac7ce46a48793ebfee81826cfc1ac205d73b24e6a9343cae86897f2354c4e880a9ebb416c83487747896e4795?locale=EN_US&cta=saveandcopylink' }
+      { id: 'standard', label: '10 classes', price: 250, qboItem: "Groms Tennis", payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-f4a24dfac7ce46a48793ebfee81826cfc1ac205d73b24e6a9343cae86897f2354c4e880a9ebb416c83487747896e4795?locale=EN_US&cta=saveandcopylink' }
     ]
   },
   shredders: {
     name: "Shredder's",
     ageGroups: ['9-16'],
     options: [
-      { id: '8x-month',  label: '8 classes / month',  price: 240, qboItem: "Shredder's - 8 classes / month", payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-dcab8ea1fc914441bc783968ec6ccf8c77b53ad8572e49fb92b68d424252da275f077e97801844e59829101c8bb46d68?locale=EN_US&cta=saveandcopylink' },
-      { id: '12x-month', label: '12 classes / month', price: 330, qboItem: "Shredder's - 12 classes / month", payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-f77d0594914a48d7b316e2425349ffd1578d6d1f29d4499682a59460e283f2610d0186ab339f449f87dfe80b23be787f?locale=EN_US&cta=saveandcopylink' },
-      { id: 'drop-in',   label: 'Drop-in',            price: 35,  qboItem: "Shredder's - Drop-in", payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-f4e0fc27cd224867b0a60db0fe508ccf508514924d6d41419a55a1701e85e8e908bb400938514a7d98ee178af374f1aa?locale=EN_US&cta=saveandcopylink' }
+      { id: '8x-month',  label: '8 classes / month',  price: 240, qboItem: "Shredder's 8x/mo.", payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-dcab8ea1fc914441bc783968ec6ccf8c77b53ad8572e49fb92b68d424252da275f077e97801844e59829101c8bb46d68?locale=EN_US&cta=saveandcopylink' },
+      { id: '12x-month', label: '12 classes / month', price: 330, qboItem: "Shredder's 12x/mo.", payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-f77d0594914a48d7b316e2425349ffd1578d6d1f29d4499682a59460e283f2610d0186ab339f449f87dfe80b23be787f?locale=EN_US&cta=saveandcopylink' },
+      { id: 'drop-in',   label: 'Drop-in',            price: 35,  qboItem: "Shredder's drop in", payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-f4e0fc27cd224867b0a60db0fe508ccf508514924d6d41419a55a1701e85e8e908bb400938514a7d98ee178af374f1aa?locale=EN_US&cta=saveandcopylink' }
     ]
   },
   'summer-camp': {
@@ -146,12 +151,12 @@ export const PROGRAMS: Record<string, Program> = {
     name: 'Elite Academy',
     ageGroups: ['10-18'],
     options: [
-      { id: '8x-month',  label: '8 classes / month — first month',  price: 320, qboItem: 'Elite Academy - 8 classes / month', payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-a83e0d0de2e74102a72ff6b102f4e0be98873bb9b0084ffeb89db13d5622b587d007dc7ac227490d9ec8fa204332d7a4?locale=EN_US&cta=saveandcopylink', autoDraftAfterFirstMonth: true },
-      { id: '12x-month', label: '12 classes / month — first month', price: 420, qboItem: 'Elite Academy - 12 classes / month', payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-a7aa5450e4d24b0bbd2c1d1817e2c725747ffa4501a54ec4bca5c74414de2ee39611db4b5dde4978bee4130cce76a79f?locale=EN_US&cta=saveandcopylink', autoDraftAfterFirstMonth: true },
+      { id: '8x-month',  label: '8 classes / month — first month',  price: 320, qboItem: 'Elite Academy 8x/mo. -First Month', payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-a83e0d0de2e74102a72ff6b102f4e0be98873bb9b0084ffeb89db13d5622b587d007dc7ac227490d9ec8fa204332d7a4?locale=EN_US&cta=saveandcopylink', autoDraftAfterFirstMonth: true },
+      { id: '12x-month', label: '12 classes / month — first month', price: 420, qboItem: 'Elite Academy 12x/mo. -First Month', payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-a7aa5450e4d24b0bbd2c1d1817e2c725747ffa4501a54ec4bca5c74414de2ee39611db4b5dde4978bee4130cce76a79f?locale=EN_US&cta=saveandcopylink', autoDraftAfterFirstMonth: true },
       // Deliberately no auto-draft follow-up: a drop-in is not a first month.
       // Katie: "a stand alone thing... when they know they are coming to class
       // they can click on the link and pay".
-      { id: 'drop-in',   label: 'Drop-in',                          price: 45,  qboItem: 'Elite Academy - Drop-in', payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-be458f88c1044b83b925d399e6157c4acebbf77ba93f47bca9d63610b1d0424824671f08db714caa8a9bb7e8f4827625?locale=EN_US&cta=saveandcopylink' }
+      { id: 'drop-in',   label: 'Drop-in',                          price: 45,  qboItem: 'Elite Academy Drop In Class', payUrl: 'https://connect.intuit.com/portal/app/CommerceNetwork/view/scs-v1-be458f88c1044b83b925d399e6157c4acebbf77ba93f47bca9d63610b1d0424824671f08db714caa8a9bb7e8f4827625?locale=EN_US&cta=saveandcopylink' }
     ]
   },
   adult: {
