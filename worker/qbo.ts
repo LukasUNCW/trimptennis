@@ -284,9 +284,18 @@ async function qboFetch(env: Env, path: string, init: RequestInit = {}): Promise
   return body;
 }
 
-/** Setup helper: lists QBO Items, so the office can confirm each program exists. */
+/**
+ * Setup helper: lists QBO Items, so the office can confirm each program exists.
+ *
+ * IncomeAccountRef is included because an item's name says what it is and its
+ * income account says where the money lands, and only the second one matters to
+ * the P&L. Reusing a company's existing item is only safe once you can see it
+ * books where the bookkeeper said revenue should book.
+ */
 export async function listItems(env: Env): Promise<any[]> {
-  const q = encodeURIComponent('select Id, Name, Type from Item maxresults 200');
+  const q = encodeURIComponent(
+    'select Id, Name, Type, IncomeAccountRef, Active from Item maxresults 500'
+  );
   const res = await qboFetch(env, `/query?query=${q}`);
   return res.QueryResponse?.Item ?? [];
 }

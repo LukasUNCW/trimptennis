@@ -124,7 +124,20 @@ export default {
         requireAdmin(url, env);
         if (!qboConfigured(env)) return text(QBO_NOT_CONFIGURED, 503);
         const items = await listItems(env);
-        return json(items.map((i: any) => ({ id: i.Id, name: i.Name, type: i.Type })));
+        const only = url.searchParams.get('like')?.trim().toLowerCase();
+        return json(
+          items
+            .filter((i: any) => !only || String(i.Name ?? '').toLowerCase().includes(only))
+            .map((i: any) => ({
+              id: i.Id,
+              name: i.Name,
+              type: i.Type,
+              active: i.Active,
+              incomeAccount: i.IncomeAccountRef
+                ? `${i.IncomeAccountRef.value} ${i.IncomeAccountRef.name ?? ''}`.trim()
+                : null
+            }))
+        );
       }
       // Creates any catalog item the company file is missing, named from
       // programs.ts so the names match by construction — nothing to mistype.
