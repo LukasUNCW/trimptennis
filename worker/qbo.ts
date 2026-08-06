@@ -504,6 +504,55 @@ export async function getInvoice(env: Env, invoiceRef: string): Promise<InvoiceS
   };
 }
 
+/** Every invoice raised against one customer, newest first. */
+export async function listInvoicesForCustomer(env: Env, customerId: string): Promise<InvoiceState[]> {
+  const q = encodeURIComponent(
+    `select * from Invoice where CustomerRef = '${qq(customerId)}' orderby TxnDate desc maxresults 100`
+  );
+  const res = await qboFetch(env, `/query?query=${q}`);
+  return (res.QueryResponse?.Invoice ?? []).map((inv: any) => {
+    const balance = typeof inv.Balance === 'number' ? inv.Balance : null;
+    return {
+      id: String(inv.Id),
+      number: inv.DocNumber ?? null,
+      customer: inv.CustomerRef?.name ?? inv.CustomerRef?.value ?? null,
+      total: typeof inv.TotalAmt === 'number' ? inv.TotalAmt : null,
+      balance,
+      paid: balance === 0,
+      linked: (inv.LinkedTxn ?? []).map((t: any) => ({
+        id: String(t.TxnId ?? ''), type: String(t.TxnType ?? '')
+      })),
+      payLink: null
+    };
+  });
+}
+
+/**
+ * Voids an invoice: zeroes it, leaves it in the books, keeps the numbering
+ * continuous.
+ *
+ * Void rather than delete, deliberately. A voided invoice stops appearing as
+ * owed, which is the actual problem — QuickBooks' pay page bundles every unpaid
+ * invoice for a customer, so leftover test rows inflate what a real parent
+ * appears to owe. Voiding fixes that without destroying a record, and an
+ * accountant looking at a gap in the numbering later has something to find.
+ *
+ * SyncToken is QuickBooks' optimistic lock, so it has to be read immediately
+ * before writing. Reusing a stale one fails rather than clobbering, which is the
+ * behaviour we want.
+ */
+export async function voidInvoice(env: Env, invoiceId: string): Promise<{ id: string; number: string | null }> {
+  const read = await qboFetch(env, `/invoice/${encodeURIComponent(invoiceId)}`);
+  const inv = read.Invoice;
+  if (!inv) throw new Error(`No invoice ${invoiceId}`);
+
+  const res = await qboFetch(env, '/invoice?operation=void', {
+    method: 'POST',
+    body: JSON.stringify({ Id: inv.Id, SyncToken: inv.SyncToken })
+  });
+  return { id: String(inv.Id), number: res.Invoice?.DocNumber ?? inv.DocNumber ?? null };
+}
+
 export interface CustomerInput {
   email: string;
   /** Parent's full name as they typed it. Display only — never the match key. */

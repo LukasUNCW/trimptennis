@@ -28,7 +28,8 @@ import { PROGRAMS, lookupProgram, lookupOption, listPrograms, payUrlFor, isEnrol
 import {
   buildAuthUrl, exchangeCodeForTokens, listItems, qboConfigured, consumeState,
   findOrCreateCustomer, findItemIdByName, createInvoice,
-  findIncomeAccountId, createServiceItem, listIncomeAccounts, getInvoiceLink, getInvoice
+  findIncomeAccountId, createServiceItem, listIncomeAccounts, getInvoiceLink, getInvoice,
+  listInvoicesForCustomer, voidInvoice
 } from './qbo';
 import { listSessions, claimSessions } from './sessions';
 import { adminPage, adminCsv } from './admin';
@@ -174,6 +175,64 @@ export default {
           expiresInMinutes: 15,
           note: 'Single use, expires in 15 minutes. Sends them straight in; the session lasts 60 days.'
         });
+      }
+      // Clears leftover test invoices off a customer, so testing the site does
+      // not leave the academy's books full of debts nobody owes.
+      //
+      // Two guards, and both matter more than the convenience does.
+      //
+      // It PREVIEWS by default. Without ?confirm=yes it lists what it would void
+      // and changes nothing. A destructive route whose bare URL is harmless is
+      // one you can paste into a browser to see where you stand, and that is the
+      // form somebody reaches for at speed.
+      //
+      // It never touches a PAID invoice. A zero balance or a linked payment
+      // means real money settled against it, and voiding that unpicks a
+      // transaction rather than tidying a test. Skipped and reported, never
+      // silently.
+      //
+      // Voids rather than deletes: the invoice stops counting as owed, which is
+      // the actual problem, while staying in the books with the numbering
+      // intact. If Katie wants them gone entirely that is a decision for her, in
+      // QuickBooks, with her accountant's view of it.
+      if (request.method === 'GET' && pathname === '/qbo/void-invoices') {
+        requireAdmin(url, env);
+        if (!qboConfigured(env)) return text(QBO_NOT_CONFIGURED, 503);
+
+        const customer = url.searchParams.get('customer')?.trim();
+        if (!customer) {
+          return json({ error: 'Pass ?customer= with the QuickBooks customer id.' }, 400);
+        }
+        const confirmed = url.searchParams.get('confirm') === 'yes';
+
+        const all = await listInvoicesForCustomer(env, customer);
+        const skipped = all
+          .filter((i) => i.paid || i.linked.length > 0)
+          .map((i) => ({ id: i.id, number: i.number, total: i.total, why: 'paid or has a payment attached' }));
+        const targets = all.filter((i) => !i.paid && i.linked.length === 0);
+
+        if (!confirmed) {
+          return json({
+            preview: true,
+            customer,
+            wouldVoid: targets.map((i) => ({ id: i.id, number: i.number, total: i.total })),
+            skipped,
+            note: 'Nothing changed. Add &confirm=yes to void the ones listed under wouldVoid.'
+          });
+        }
+
+        const voided = [];
+        const failed = [];
+        for (const t of targets) {
+          try {
+            voided.push(await voidInvoice(env, t.id));
+          } catch (err) {
+            // Reported per invoice rather than aborting: one stale SyncToken
+            // should not stop the other nine being cleared.
+            failed.push({ id: t.id, number: t.number, error: String(err instanceof Error ? err.message : err) });
+          }
+        }
+        return json({ customer, voided, failed, skipped });
       }
       if (request.method === 'GET' && pathname === '/qbo/connect') {
         requireAdmin(url, env);
