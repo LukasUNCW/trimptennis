@@ -325,7 +325,25 @@ const qq = (s: string) => s.replace(/'/g, "\\'");
  * QuickBooks disagree, and the honest failure is louder than an invoice quietly
  * booked to the wrong line of the P&L.
  */
+/**
+ * Item ids by name, cached for the life of the isolate or ten minutes.
+ *
+ * A name maps to an id that does not change: renaming an item in QuickBooks
+ * keeps its id, so a cached entry stays correct through the most likely edit.
+ * The TTL is there for the less likely ones — an item deactivated or replaced —
+ * so a stale entry cannot outlive a season.
+ *
+ * Worth caching because this lookup sits in the enrolment path, where every
+ * round trip to Intuit is time a parent spends watching a button say
+ * "Submitting...".
+ */
+const itemIdCache = new Map<string, { id: string; at: number }>();
+const ITEM_CACHE_MS = 10 * 60 * 1000;
+
 export async function findItemIdByName(env: Env, name: string): Promise<string> {
+  const hit = itemIdCache.get(name);
+  if (hit && Date.now() - hit.at < ITEM_CACHE_MS) return hit.id;
+
   const q = encodeURIComponent(`select Id, Name from Item where Name = '${qq(name)}'`);
   const res = await qboFetch(env, `/query?query=${q}`);
   const id = res.QueryResponse?.Item?.[0]?.Id;
@@ -335,6 +353,7 @@ export async function findItemIdByName(env: Env, name: string): Promise<string> 
       `Products & services, or correct qboItem in worker/programs.ts.`
     );
   }
+  itemIdCache.set(name, { id, at: Date.now() });
   return id;
 }
 

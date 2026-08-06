@@ -623,15 +623,20 @@ async function bookInQuickBooks(
   let timedOut = false;
   try {
     const work = (async () => {
-      const customerId = await findOrCreateCustomer(env, {
-        email: row.parent_email as string,
-        // Adults enrol themselves and carry no parent_name, so they are their
-        // own customer. Falling through to the email address keeps a customer
-        // findable even if a name somehow arrives empty.
-        name: row.parent_name ?? row.player_name ?? (row.parent_email as string),
-        phone: row.phone
-      });
-      const itemId = await findItemIdByName(env, option.qboItem as string);
+      // Concurrent, because neither needs the other and both are round trips to
+      // Intuit. Run in sequence they are time a parent spends watching a button
+      // say "Submitting..." for no reason.
+      const [customerId, itemId] = await Promise.all([
+        findOrCreateCustomer(env, {
+          email: row.parent_email as string,
+          // Adults enrol themselves and carry no parent_name, so they are their
+          // own customer. Falling through to the email address keeps a customer
+          // findable even if a name somehow arrives empty.
+          name: row.parent_name ?? row.player_name ?? (row.parent_email as string),
+          phone: row.phone
+        }),
+        findItemIdByName(env, option.qboItem as string)
+      ]);
       const invoice = await createInvoice(env, {
         customerId,
         itemId,
