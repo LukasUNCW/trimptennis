@@ -24,7 +24,7 @@
 // group) because that is the part QuickBooks does not track.
 
 import type { Env } from './types';
-import { PROGRAMS, lookupProgram, lookupOption, listPrograms, payUrlFor, isEnrollable } from './programs';
+import { PROGRAMS, lookupProgram, lookupOption, listPrograms, payUrlFor, isEnrollable, priceFor } from './programs';
 import {
   buildAuthUrl, exchangeCodeForTokens, listItems, qboConfigured, consumeState,
   findOrCreateCustomer, findItemIdByName, createInvoice,
@@ -363,7 +363,10 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
     // was actually shown — which is also how a payment gets matched back, since
     // a multi-use QuickBooks link records no customer name.
     price_option: option.id,
-    price_quoted: option.price
+    // The real total, not the per-day rate. Safe to compute from the requested
+    // days because the claim below is all-or-nothing: either every day asked for
+    // is held, or the row is deleted and nothing is charged.
+    price_quoted: priceFor(program, option, days.length)
   };
 
   await env.DB
@@ -402,7 +405,10 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
   // Only now, with the roster row safely written and the places held, do we talk
   // to QuickBooks. The order is the whole point: a parent who gets this far is
   // recorded whatever Intuit does next.
-  const payment = await bookInQuickBooks(env, program, option, row, dayLabels);
+  // What this parent actually owes. For Grom's that is $200 for every weekday
+  // they took, so it cannot be known until the claim above succeeded.
+  const amount = priceFor(program, option, dayLabels.length);
+  const payment = await bookInQuickBooks(env, program, option, row, dayLabels, amount);
 
   // Recording the ids is for the office's benefit later, not for this parent
   // now, so it must not be able to fail their signup — the roster row is already
@@ -422,6 +428,7 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
   ctx.waitUntil(notifyEnrollment(env, {
     ...row,
     optionLabel: option.label,
+    price_quoted: amount,
     // Set per option, not per program: Elite sells memberships AND drop-ins, and
     // telling a drop-in player to expect an auto draft would be wrong.
     autoDraftFollowUp: option.autoDraftAfterFirstMonth === true,
@@ -438,7 +445,9 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
     // name comes from the stored child record and not from the submitted field,
     // and for a single-option program, where the option was resolved here.
     program: program.name,
-    option: { id: option.id, label: option.label, price: option.price },
+    // price is the TOTAL, not the per-day rate, so the review panel and the
+    // confirmation cannot disagree with the invoice.
+    option: { id: option.id, label: option.label, price: amount },
     playerName: player_name,
     days: dayLabels,
     // null means "no card page to send them to" — the site shows a "the office
@@ -488,7 +497,13 @@ async function bookInQuickBooks(
   row: { parent_name: string | null; parent_email: string | null; phone: string | null;
          player_name: string | null; age_group: string | null },
   /** Weekdays claimed, for programs where the parent picks days. */
-  dayLabels: string[] = []
+  dayLabels: string[] = [],
+  /**
+   * The total to charge. Passed in rather than read off the option, because for
+   * a per-day program the option holds a unit price and billing that directly
+   * would undercharge a four day child by $600.
+   */
+  amount: number | null = null
 ): Promise<PaymentRouting> {
   const staticUrl = payUrlFor(program, option as any);
   const useStaticLink = (): PaymentRouting => ({
@@ -501,7 +516,8 @@ async function bookInQuickBooks(
   // Nothing to invoice against: summer camp while it is off, adult programs
   // until they have a price. Both already have a null payUrl, so this lands on
   // "the office will follow up", which is the existing, correct behaviour.
-  if (option.qboItem === null || typeof option.price !== 'number' || !row.parent_email) {
+  if (option.qboItem === null || typeof option.price !== 'number'
+      || typeof amount !== 'number' || !row.parent_email) {
     return useStaticLink();
   }
 
@@ -520,7 +536,10 @@ async function bookInQuickBooks(
       const invoice = await createInvoice(env, {
         customerId,
         itemId,
+        // Unit price and quantity, so the invoice reads "4 x $200" and lines up
+        // with a register of four classes rather than one lump sum.
         amount: option.price as number,
+        quantity: dayLabels.length || 1,
         // The player goes on the line, which is what makes per-child reporting
         // work without a second tier of customers. See docs/QBO-INTEGRATION.md.
         // The days go on it too where there are any, because "which days is my

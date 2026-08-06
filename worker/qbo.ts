@@ -566,8 +566,17 @@ export async function findOrCreateCustomer(env: Env, input: CustomerInput): Prom
 export interface InvoiceInput {
   customerId: string;
   itemId: string;
-  /** Whole dollars. QuickBooks is still authoritative for what is charged. */
+  /** Whole dollars PER UNIT. The line total is amount x quantity. */
   amount: number;
+  /**
+   * How many of the thing. One for everything except Grom's, where each weekday
+   * chosen is a separate eight week session at its own price.
+   *
+   * Sent as a real quantity rather than folded into a single line total, so the
+   * invoice reads "4 x $200" and reconciles against a register of four classes.
+   * A lump $800 with no quantity is the version somebody queries in November.
+   */
+  quantity?: number;
   /** Appears on the invoice line — carries the player, e.g. "Test (9-16)". */
   description: string;
   /** Where QuickBooks emails the invoice. */
@@ -610,11 +619,11 @@ export async function createInvoice(env: Env, input: InvoiceInput): Promise<Invo
       Line: [
         {
           DetailType: 'SalesItemLineDetail',
-          Amount: input.amount,
+          Amount: input.amount * (input.quantity ?? 1),
           Description: input.description,
           SalesItemLineDetail: {
             ItemRef: { value: input.itemId },
-            Qty: 1,
+            Qty: input.quantity ?? 1,
             UnitPrice: input.amount,
             // Katie, 2026-08-05: "No we do not charge sales tax ever." Their
             // company file has sales tax configured, so without this the line

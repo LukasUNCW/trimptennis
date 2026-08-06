@@ -247,9 +247,29 @@
           : `${s.remaining} place${s.remaining === 1 ? '' : 's'} left`}</span>
       </label>`).join('');
 
-    daysNote.textContent = sessions.every((s) => s.full)
-      ? 'Every day is full at the moment — please contact the office about the waiting list.'
-      : 'Same price whichever days you choose.';
+    if (sessions.every((s) => s.full)) {
+      daysNote.textContent =
+        'Every day is full at the moment. Please contact the office about the waiting list.';
+      return;
+    }
+
+    // Each weekday is a separate session at its own price, so the total moves as
+    // boxes are ticked. Shown live rather than only on the review panel: finding
+    // out that two days is $400 after committing is how a signup gets abandoned
+    // at the last step.
+    const unit = p.options?.[0]?.price;
+    const perDay = p.priceIsPerDay === true && typeof unit === 'number';
+    const tally = () => {
+      const n = chosenDays().length;
+      daysNote.textContent = !perDay
+        ? 'Same price whichever days you choose.'
+        : n === 0
+          ? `$${unit} per day. Pick the days you want.`
+          : `${n} day${n === 1 ? '' : 's'} at $${unit} = ` +
+            `$${unit * n} for the session.`;
+    };
+    daysBox.addEventListener('change', tally);
+    tally();
   }
 
   const chosenDays = () =>

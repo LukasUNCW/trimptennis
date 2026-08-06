@@ -97,15 +97,29 @@ export interface Program {
    * The parent chooses which weekdays their child attends, and each weekday is a
    * separate class with its own cap. Grom's runs Monday to Thursday.
    *
-   * The days are a capacity question, not a pricing one: $250 buys the ten week
-   * term whether a child comes once a week or four times. If that ever changes,
-   * it changes here and in the price options, not in the session rows.
+   * Days drive both capacity and price. Each weekday is its own eight week
+   * session at its own $200, so picking two days is two sessions and $400. See
+   * priceIsPerDay, and charge through priceFor() rather than option.price.
    *
    * The days themselves live in the program_sessions table rather than in this
    * file, because a cancelled Wednesday or a cap moving to 20 is a fact about
    * the season that should not need a deploy.
    */
   picksDays?: boolean;
+  /**
+   * `price` on each option is PER DAY, not the total. A parent picking Monday and
+   * Wednesday owes twice it.
+   *
+   * John Trimp, 2026-08-05: "$200 for an 8 week session, if you want two days a
+   * week, must sign up for two sessions = 2 x 200 = 400." Each weekday is its own
+   * eight week session that happens to be sold through one form.
+   *
+   * Only meaningful alongside picksDays: without days to count there is nothing
+   * to multiply. Everything that charges or displays money has to go through
+   * priceFor(), never straight to option.price, or a four day child gets billed
+   * for one.
+   */
+  priceIsPerDay?: boolean;
   /**
    * False when the program exists but is not currently taking signups — a season
    * that has finished, or one cancelled for lack of numbers.
@@ -134,8 +148,11 @@ export const PROGRAMS: Record<string, Program> = {
     name: "Grom's",
     ageGroups: ['6-12'],
     picksDays: true,
+    priceIsPerDay: true,
     options: [
-      { id: 'standard', label: '10 week term', price: 250, qboItem: "Groms Tennis", payUrl: null }
+      // $200 buys ONE weekday for the eight week session. Two days is two
+      // sessions and $400. See priceIsPerDay.
+      { id: 'standard', label: '8 week session', price: 200, qboItem: "Groms Tennis", payUrl: null }
     ]
   },
   shredders: {
@@ -193,6 +210,25 @@ export const PROGRAMS: Record<string, Program> = {
 
 export const lookupProgram = (slug: unknown): Program | null =>
   typeof slug === 'string' && Object.hasOwn(PROGRAMS, slug) ? PROGRAMS[slug] : null;
+
+/**
+ * What to actually charge, given how many days were chosen.
+ *
+ * The single place that knows whether a price is a total or a unit. Every
+ * caller that shows money or bills for it goes through here: the enrol dialog,
+ * the review panel, the roster, the invoice. Reading option.price directly is
+ * how a four day Grom's child gets billed $200 instead of $800.
+ *
+ * dayCount is ignored for everything except a per-day program, so callers do
+ * not have to know which is which.
+ */
+export function priceFor(p: Program, o: PriceOption, dayCount: number): number | null {
+  if (typeof o.price !== 'number') return null;
+  if (!p.priceIsPerDay) return o.price;
+  // Zero days is refused at /api/enroll long before this, but returning the
+  // unit price here would quietly make a broken request look like a $200 sale.
+  return dayCount > 0 ? o.price * dayCount : null;
+}
 
 /** Whether this program is currently taking signups. Absent flag means yes. */
 export const isEnrollable = (p: Program): boolean => p.enrollable !== false;
@@ -353,6 +389,7 @@ export const listPrograms = () =>
     ageGroups: p.ageGroups,
     selfEnroll: p.selfEnroll === true,
     picksDays: p.picksDays === true,
+    priceIsPerDay: p.priceIsPerDay === true,
     // Still listed even when false, because the account page resolves a stored
     // option id to its label through this response. The enrol form filters on it.
     enrollable: isEnrollable(p),
