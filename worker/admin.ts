@@ -206,6 +206,10 @@ export async function adminPage(env: Env, key: string): Promise<Response> {
   header { background:var(--navy); color:#fff; padding:18px 22px; }
   header h1 { margin:0; font-size:1.15rem; }
   header p { margin:6px 0 0; color:#B9C6D8; font-size:.85rem; }
+  .head-row { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+  .head-nav { display:flex; gap:14px; font-size:.9rem; white-space:nowrap; }
+  .head-nav a { color:#fff; text-decoration:none; border-bottom:1px solid rgba(255,255,255,.35); padding-bottom:1px; }
+  .head-nav a:hover { border-bottom-color:#fff; }
   main { padding:22px; max-width:1500px; margin:0 auto; }
   .pill { display:inline-block; background:#fff; border:1px solid var(--line); border-radius:999px; padding:4px 12px; margin:0 8px 8px 0; font-size:.85rem; }
   .pill b { color:var(--teal); }
@@ -233,8 +237,19 @@ export async function adminPage(env: Env, key: string): Promise<Response> {
 </style></head>
 <body>
 <header>
-  <h1>Roster</h1>
-  <p>${rows.length} enrolment${rows.length === 1 ? '' : 's'} · read-only · this page lists children and contact details, so treat the link as private</p>
+  <div class="head-row">
+    <div>
+      <h1>Roster</h1>
+      <p>${rows.length} enrolment${rows.length === 1 ? '' : 's'} · read-only · this page lists children and contact details, so treat the link as private</p>
+    </div>
+    <!-- A way out. This page is served standalone rather than inside the site
+         shell, so without these it is a dead end and the only exit is the back
+         button or retyping the address. -->
+    <nav class="head-nav">
+      <a href="/">Main site</a>
+      <a href="/account">My account</a>
+    </nav>
+  </div>
 </header>
 <main>
   <div>${totals}</div>
