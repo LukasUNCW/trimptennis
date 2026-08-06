@@ -198,6 +198,19 @@
     optionNote.textContent = options.every((o) => !o.payable)
       ? 'The office will confirm the price and take payment by phone.'
       : '';
+
+    // Monthly memberships continue by auto draft, which needs the card saved at
+    // checkout. Saving it is the parent's choice and has to be — nobody can be
+    // opted into a stored card. So the job here is to make sure the prompt is
+    // expected rather than sprung, because a parent who declines it is one the
+    // office chases by phone every month.
+    optionSel.onchange = () => {
+      const chosen = options.find((o) => o.id === optionSel.value);
+      optionNote.textContent = chosen?.autoDraft
+        ? 'This covers your first month. At checkout, choose to save your card so '
+          + 'the monthly payment can continue automatically.'
+        : '';
+    };
   }
 
   /**

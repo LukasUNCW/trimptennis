@@ -397,6 +397,11 @@ export const listPrograms = () =>
       id: o.id,
       label: o.label,
       price: o.price,
+      // Drives the "save your card" warning in the dialog. A parent told to
+      // expect that prompt agrees to it far more often than one met with it cold
+      // on Intuit's last screen, and every parent who declines is one the office
+      // has to chase every month by hand.
+      autoDraft: o.autoDraftAfterFirstMonth === true,
       // isPayable rather than a null check, so the dialog cannot offer payment
       // the enrol route will then refuse to deliver.
       payable: isPayable(o)
