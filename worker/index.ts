@@ -135,6 +135,46 @@ export default {
           ? await adminPage(env, url.searchParams.get('key') ?? '')
           : await adminCsv(env);
       }
+      // Mints a sign-in link and RETURNS it instead of emailing it, so staff can
+      // be got in by any channel: text, WhatsApp, read down the phone.
+      //
+      // This exists because sign-in mail still goes through Resend's shared
+      // sender, which only delivers to the Resend account owner. Katie can
+      // request a link all day and nothing arrives, with no bounce to explain
+      // why. Handing her the link directly is the same flow with the delivery
+      // step done by a human, and it gives her a real session — so the roster
+      // stops depending on a shared key in a URL.
+      //
+      // Restricted to accounts already marked is_admin. It exists to get staff
+      // in, not to become a way of impersonating a parent, and that distinction
+      // should be enforced rather than merely intended.
+      //
+      // The link is single-use and expires in 15 minutes, like every other one.
+      // Send it while the person is at their computer.
+      if (request.method === 'GET' && pathname === '/admin/signin-link') {
+        requireAdmin(url, env);
+        const email = normaliseEmail(url.searchParams.get('email') ?? '');
+        if (!email) return json({ error: 'Pass ?email=' }, 400);
+
+        const account = await env.DB
+          .prepare('SELECT is_admin FROM accounts WHERE email = ?1')
+          .bind(email)
+          .first<{ is_admin: number }>();
+        if (!account) {
+          return json({ error: `No account for ${email}.` }, 404);
+        }
+        if (account.is_admin !== 1) {
+          return json({ error: `${email} is not an admin. Set is_admin first.` }, 403);
+        }
+
+        const token = await createLoginToken(env, email);
+        return json({
+          email,
+          signInUrl: `${url.origin}/auth/callback?token=${token}`,
+          expiresInMinutes: 15,
+          note: 'Single use, expires in 15 minutes. Sends them straight in; the session lasts 60 days.'
+        });
+      }
       if (request.method === 'GET' && pathname === '/qbo/connect') {
         requireAdmin(url, env);
         if (!qboConfigured(env)) return text(QBO_NOT_CONFIGURED, 503);
