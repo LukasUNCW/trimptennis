@@ -170,13 +170,11 @@ phase 3 is small. Not a single sitting, but not months either.
 Magic links are email. `RESEND_API_KEY` is set and email sends, so what is left
 is the domain:
 
-**The domain must be verified in Resend.** Until then Resend's shared sender can
-only deliver to the Resend account owner — so magic links reach Lukas and nobody
-else. Verifying `seahawkstennisacademy.com` needs DNS records added, which means
-the academy's domain access.
-
-That is not a coding task, and it is the whole blocker. **Auth cannot ship to
-real parents before the sending domain is verified.**
+**Resolved 2026-08-12.** `seahawkstennisacademy.com` is verified in Resend (DNS
+records added via the academy's own Cloudflare zone). `FROM_EMAIL`/`NOTIFY_EMAIL`
+in `wrangler.jsonc` now point at the academy's own domain instead of Lukas's
+inbox, so magic links and enrollment/inquiry notifications reach real parents
+and `info@seahawkstennisacademy.com`, not just the Resend account owner.
 
 ## Things deliberately not in this plan
 
