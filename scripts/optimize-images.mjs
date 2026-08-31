@@ -30,7 +30,10 @@ const JOBS = [
   // full mobile width once it stacks to one column — 400 plus retina 800
   // covers both without upscaling past the source.
   { src: 'shredders-clinic.jpg', out: 'shredders-clinic',   widths: [400, 800], ratio: 16/10 },
-  { src: 'groms-clinic.png',     out: 'groms-clinic',       widths: [400, 800], ratio: 16/10 },
+  // Portrait source cropped to a landscape card — centred (default) cut into
+  // the coach's head, since he's tallest and positioned high in frame.
+  // focusY pulls the window up so faces survive, trimming legs instead.
+  { src: 'groms-clinic.png',     out: 'groms-clinic',       widths: [400, 800], ratio: 16/10, focusY: 0.12 },
   { src: 'elite-clinic.jpg',     out: 'elite-clinic',       widths: [400, 800], ratio: 16/10 },
   // sits in the Elite page's ~410px aside column, so 440 plus a retina 880
   { src: 'elite-squad-2025.jpg', out: 'elite-squad-2025',   widths: [440, 880] },
