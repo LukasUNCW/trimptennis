@@ -572,6 +572,15 @@ export async function voidInvoice(env: Env, invoiceId: string): Promise<{ id: st
   return { id: String(inv.Id), number: res.Invoice?.DocNumber ?? inv.DocNumber ?? null };
 }
 
+// An update-in-place for an invoice's Line description (e.g. after moving a
+// child to a different day) was tried here and abandoned, 2026-08-24: this
+// company file has QuickBooks' Automated Sales Tax on even though the academy
+// charges none (see the NON TaxCodeRef in createInvoice), and AST rejects
+// sparse invoice updates with "error while calculating tax" regardless of
+// what tax fields are asserted in the request. Re-describing an invoice after
+// the fact needs doing by hand in the QuickBooks UI, which isn't subject to
+// this — the API is not a reliable path for it on this account.
+
 export interface CustomerInput {
   email: string;
   /** Parent's full name as they typed it. Display only — never the match key. */

@@ -1,7 +1,7 @@
 // worker/email.ts
 // Notification emails via Resend (free tier: 100/day).
-// Until the academy's domain is verified in Resend, FROM_EMAIL stays
-// onboarding@resend.dev (Resend's shared sender for development).
+// seahawkstennisacademy.com is verified in Resend, so FROM_EMAIL/NOTIFY_EMAIL
+// (wrangler.jsonc) send from and to the academy's own domain.
 
 import type { Env } from './types';
 
@@ -26,9 +26,69 @@ async function sendTo(env: Env, to: string, subject: string, html: string): Prom
   return true;
 }
 
-/** Notifications to the academy office. */
-const send = (env: Env, subject: string, html: string): Promise<boolean> =>
-  sendTo(env, env.NOTIFY_EMAIL, subject, html);
+/**
+ * Notifications to the academy office. `to` defaults to the general office
+ * inbox (NOTIFY_EMAIL); callers pass an override for the categories Katie
+ * asked to route straight to a specific person instead (2026-08-13: Adult
+ * Programs enrollments and free-trial requests → John, since he's the one
+ * who actually handles those, rather than her relaying them by hand).
+ */
+const send = (env: Env, subject: string, html: string, to: string = env.NOTIFY_EMAIL): Promise<boolean> =>
+  sendTo(env, to, subject, html);
+
+/**
+ * A held day-place that timed out unpaid, released by scheduled()'s sweep.
+ * Told to the office, not the parent — they still have the roster row and can
+ * chase it themselves if it looks like a mistake rather than a no-show.
+ */
+export async function notifyHoldExpired(env: Env, e: {
+  player_name: string | null; parent_name: string | null; parent_email: string | null;
+  program: string; days: string[]; invoiceId: string | null;
+}): Promise<void> {
+  await send(env, `Hold expired, unpaid: ${e.player_name ?? e.parent_name ?? 'Unknown'} — ${e.program}`, `
+    <h2 style="margin:0 0 12px">Enrollment hold expired ⏱</h2>
+    <table style="font-family:sans-serif;font-size:14px;border-collapse:collapse">
+      ${row('Program', esc(e.program))}
+      ${row('Player', esc(e.player_name))}
+      ${e.days.length ? row('Days', `<b>${e.days.map(esc).join(', ')}</b>`) : ''}
+      ${row('Parent', `${esc(e.parent_name)} — ${esc(e.parent_email)}`)}
+      ${row('Invoice', e.invoiceId ? `${esc(e.invoiceId)} (voided)` : 'none')}
+    </table>
+    <p style="font-family:sans-serif;font-size:14px">Never paid within the hold window, so the day(s) were
+      released back to the pool for someone else. The roster row is kept, marked <b>abandoned</b>,
+      in case this was a mistake worth following up on.</p>
+  `);
+}
+
+/**
+ * Sent to the PARENT, not the office — the nudge for someone who saved an
+ * enrolment and never reached the card screen (see notifyHoldExpired for what
+ * happens if this goes unanswered too). Fires once per enrolment; the sweep
+ * sets reminder_sent_at so a later tick doesn't repeat it.
+ *
+ * payLink can be null if QuickBooks issued none — the copy still has to make
+ * sense in that case, so it falls back to asking them to contact the office
+ * rather than showing a broken link.
+ */
+export async function notifyPaymentReminder(env: Env, e: {
+  parent_name: string | null; parent_email: string; player_name: string | null;
+  program: string; payLink: string | null;
+}): Promise<void> {
+  await sendTo(env, e.parent_email, `Action needed: complete payment for ${esc(e.program)}`, `
+    <h2 style="margin:0 0 14px;font-family:sans-serif;color:#0A2240">Almost there 🎾</h2>
+    <p style="font-family:sans-serif;font-size:15px;color:#15263D;margin:0 0 18px">
+      Hi${e.parent_name ? ' ' + esc(e.parent_name) : ''}, ${esc(e.player_name ?? 'your player')}'s spot in
+      ${esc(e.program)} is saved, but we haven't received payment yet — it's still needed to keep the place.</p>
+    ${e.payLink ? `
+    <p style="margin:0 0 24px">
+      <a href="${esc(e.payLink)}" style="background:#077A78;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-family:sans-serif;font-weight:600;display:inline-block">Complete payment →</a>
+    </p>` : `
+    <p style="font-family:sans-serif;font-size:15px;color:#15263D;margin:0 0 24px">
+      Please contact the office and we'll get you a payment link.</p>`}
+    <p style="font-family:sans-serif;font-size:13px;color:#5A6B80;margin:0">
+      If payment isn't completed soon, the spot may be released to another family.</p>
+  `);
+}
 
 /**
  * Sign-in link — the only mail we send to a visitor rather than to the office.
@@ -133,6 +193,9 @@ export async function notifyEnrollment(env: Env, e: {
   // link records no customer name: when the office reconciles, the amount is
   // what ties a payment back to a person, so it needs to be findable by search.
   const money = typeof e.price_quoted === 'number' ? ` · $${e.price_quoted}` : '';
+  // Adult Programs goes straight to John — he runs that program directly, so
+  // routing through the general office inbox was just a relay step.
+  const to = e.program === 'Adult Programs' ? env.JOHN_EMAIL : undefined;
   await send(env, `New enrollment: ${e.player_name ?? e.parent_name ?? 'Unknown'} — ${e.program}${money}`, `
     <h2 style="margin:0 0 12px">New enrollment 🎾</h2>
     <table style="font-family:sans-serif;font-size:14px;border-collapse:collapse">
@@ -155,19 +218,26 @@ export async function notifyEnrollment(env: Env, e: {
       in QuickBooks once ${esc(e.player_name)} has attended a month.</p>` : ''}
     <p style="font-family:sans-serif;font-size:13px;color:#666">
       This is a signup notification, not a payment confirmation. QuickBooks is the
-      record of what was actually paid.</p>`);
+      record of what was actually paid.</p>`, to);
 }
 
 export async function notifyInquiry(env: Env, q: {
   kind: string; name: string; email: string; phone?: string | null;
   player_name?: string | null; age_group?: string | null; message?: string | null;
   email_to?: string | null; zip?: string | null; contact_preference?: string | null;
+  has_experience?: string | null;
 }): Promise<void> {
   const label = q.kind === 'free_trial' ? 'Free trial request' : 'Website contact';
   // The topic belongs in the subject line — it is how the office decides who
   // picks the message up.
   const subject = q.email_to ? `${label} — ${q.email_to}: ${q.name}` : `${label}: ${q.name}`;
   const wantsPhone = q.contact_preference === 'phone';
+  // Free trial requests go straight to John, same as Adult Programs
+  // enrollments above. Adult Programs has no actual enroll button today — the
+  // live path is "Ask about adult programs" on /adults, which is this same
+  // contact form with topic=Adult Programs — so that has to be covered here
+  // too, or Katie's request would miss the only way anyone reaches John today.
+  const to = q.kind === 'free_trial' || q.email_to === 'Adult Programs' ? env.JOHN_EMAIL : undefined;
 
   await send(env, subject, `
     <h2 style="margin:0 0 12px">${esc(label)}</h2>
@@ -178,6 +248,7 @@ export async function notifyInquiry(env: Env, q: {
       ${row('Phone', esc(q.phone))}
       ${q.zip ? row('Zip', esc(q.zip)) : ''}
       ${q.player_name ? row('Player', `${esc(q.player_name)} (${esc(q.age_group)})`) : ''}
+      ${q.has_experience ? row('Tennis experience', q.has_experience === 'yes' ? 'Yes' : 'No / first time') : ''}
       ${q.message ? row('Message', esc(q.message)) : ''}
     </table>
     ${q.contact_preference ? `
@@ -185,5 +256,5 @@ export async function notifyInquiry(env: Env, q: {
        background:${wantsPhone ? '#FFF4D6' : '#EDF6F6'};border-left:4px solid ${wantsPhone ? '#F5B72E' : '#077A78'}">
       <b>Prefers ${wantsPhone ? 'a phone call' : 'email'}:</b>
       ${wantsPhone ? esc(q.phone) : esc(q.email)}</p>` : `
-    <p style="font-family:sans-serif;font-size:13px;color:#666">Reply directly to reach them: ${esc(q.email)}</p>`}`);
+    <p style="font-family:sans-serif;font-size:13px;color:#666">Reply directly to reach them: ${esc(q.email)}</p>`}`, to);
 }

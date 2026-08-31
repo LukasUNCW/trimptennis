@@ -8,7 +8,9 @@
 -- payment_status is our best knowledge, not the source of truth:
 --   awaiting_payment — sent to a QuickBooks payment link, not yet confirmed
 --   paid             — matched to a QuickBooks Payment
---   abandoned        — never paid (set by hand, or by a future sweep)
+--   abandoned        — never paid within the hold window; the sweep in
+--                      worker/index.ts's scheduled() released the days back to
+--                      the pool and voided the invoice
 --
 -- Elite Academy is no different here: the payment link covers month one, then
 -- the office sets up auto draft in QuickBooks.
@@ -46,7 +48,18 @@ CREATE TABLE IF NOT EXISTS enrollments (
   -- needs to find later: an enrolment with no invoice id is one whose payment
   -- will arrive anonymously and have to be attributed by hand.
   qbo_customer_id TEXT,
-  qbo_invoice_id TEXT
+  qbo_invoice_id TEXT,
+  -- A day's place is claimed the instant this row is written, before any money
+  -- moves — see the comment above handleEnroll in worker/index.ts for why a
+  -- slot is held rather than requiring payment to complete first. NULL once
+  -- payment_status leaves 'awaiting_payment' (paid, or abandoned by the sweep).
+  -- Rows written before this column existed keep it NULL and are simply never
+  -- swept, which is correct: an old enrolment cannot retroactively expire.
+  hold_expires_at TEXT,
+  -- Set once the sweep emails this parent their own payment link (REMINDER_MINUTES
+  -- unpaid), so the next tick doesn't send it again. NULL forever for a row
+  -- that pays before the reminder threshold, or that predates this column.
+  reminder_sent_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_enrollments_account ON enrollments (account_id);
 
@@ -113,7 +126,12 @@ CREATE TABLE IF NOT EXISTS inquiries (
   -- it, plus how they would rather be reached.
   email_to TEXT,
   zip TEXT,
-  contact_preference TEXT           -- 'email' | 'phone'
+  contact_preference TEXT,          -- 'email' | 'phone'
+  -- Free-trial mode only ('yes' | 'no'): lets the coach know before the trial
+  -- whether this is a first racquet or a returning player. NULL for a
+  -- 'contact' inquiry, where the question does not apply, and for any row
+  -- written before this column existed.
+  has_experience TEXT
 );
 
 -- ── Parent accounts (see docs/ACCOUNTS.md) ──────────────────────────────

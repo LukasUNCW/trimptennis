@@ -27,9 +27,12 @@
     }
   ],
 
-  // No cron for now. The nightly sweep existed to retry QuickBooks sales-receipt
-  // writes; QuickBooks Payments records sales itself, so there is nothing to
-  // retry. A cron returns when we reconcile QuickBooks Payments → enrollments.
+  // Runs sweepAwaitingPayments() in worker/index.ts: at REMINDER_MINUTES unpaid,
+  // emails the parent their own payment link; at HOLD_MINUTES unpaid, releases
+  // the day(s) back to the pool, voids the invoice, marks the row 'abandoned',
+  // and tells the office. Every 5 minutes so the 10-minute reminder lands close
+  // to on time rather than drifting toward 15+ minutes late.
+  "triggers": { "crons": ["*/5 * * * *"] },
 
   // Non-secret config. Secrets (API keys) are set with `wrangler secret put`.
   "vars": {
@@ -38,12 +41,22 @@
     // it: a refresh token issued to the development client id is not valid for
     // the production one. See docs/QBO-GO-LIVE.md.
     "QBO_SANDBOX": "false",
-    // TEMPORARY: Resend's shared sender (onboarding@resend.dev) only delivers to
-    // the Resend account owner until a domain is verified, so notifications go to
-    // Lukas for now. Change back to info@seahawkstennisacademy.com once
-    // seahawkstennisacademy.com is verified in Resend — see docs/ACCOUNTS.md.
-    "NOTIFY_EMAIL": "lukas.nilsson4321@gmail.com",
-    "FROM_EMAIL": "onboarding@resend.dev",
+    // seahawkstennisacademy.com verified in Resend on 2026-08-12. MX cut over to
+    // Google Workspace on the same day (Gmail activation flipped MX + SPF
+    // automatically via Cloudflare's Workspace integration), so info@ is now a
+    // real, reachable mailbox (Katie's) instead of a nonexistent address on the
+    // old mail host. Confirmed working via a direct test send.
+    "NOTIFY_EMAIL": "info@seahawkstennisacademy.com",
+    // Adult Programs enrollments and free-trial requests route straight here
+    // instead of the general office inbox — Katie's request, 2026-08-13.
+    // Pointed at John's personal Gmail rather than john@seahawkstennisacademy.com
+    // (2026-08-20): he wasn't checking/receiving mail at the Workspace address.
+    // Site notifications are fixed by this alone, but anything else addressed to
+    // john@seahawkstennisacademy.com (e.g. the mailto: links on /juniors, /elite,
+    // /contact) still lands in that Workspace inbox, not here — see docs/ACCOUNTS.md
+    // for the Workspace-forwarding fix that would cover those too.
+    "JOHN_EMAIL": "johntrimp@gmail.com",
+    "FROM_EMAIL": "notifications@seahawkstennisacademy.com",
     "SITE_NAME": "Seahawks Tennis Academy"
   },
 

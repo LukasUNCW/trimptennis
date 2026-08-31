@@ -33,16 +33,29 @@ import {
 } from './qbo';
 import { listSessions, claimSessions } from './sessions';
 import { adminPage, adminCsv } from './admin';
-import { notifyEnrollment, notifyInquiry, sendMagicLink } from './email';
+import { notifyEnrollment, notifyInquiry, sendMagicLink, notifyHoldExpired, notifyPaymentReminder } from './email';
 import {
   normaliseEmail, isRateLimited, createLoginToken, redeemLoginToken,
   createSession, getSessionUser, destroySession, sessionCookie, clearedCookie
 } from './auth';
 
+// How long a submitted enrollment holds its day(s) before scheduled() treats it
+// as abandoned. Long enough that filling in a card isn't a race, short enough
+// that a no-show doesn't sit on a spot a paying family could have taken.
+const HOLD_MINUTES = 45;
+// How long unpaid before scheduled() emails the parent their own payment link
+// as a nudge, ahead of HOLD_MINUTES actually releasing the spot. The cron runs
+// every 5 minutes (wrangler.jsonc), so the real send lands within a few
+// minutes of this, not to the second.
+const REMINDER_MINUTES = 10;
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
-    const { pathname } = url;
+    // Tolerate a trailing slash (typed URLs, stale bookmarks/autocomplete,
+    // links with a slash appended) so e.g. /admin/ matches the same route
+    // as /admin instead of falling through to the static-asset 404 page.
+    const pathname = url.pathname.length > 1 ? url.pathname.replace(/\/+$/, '') : url.pathname;
 
     try {
       if (request.method === 'GET' && pathname === '/api/programs') {
@@ -191,6 +204,18 @@ export default {
       // transaction rather than tidying a test. Skipped and reported, never
       // silently.
       //
+      // For a parent who never reached the payment screen (closed the tab, lost
+      // connection). The invoice is real either way — /api/enroll hands the pay
+      // link to the browser exactly once, so this is how the office recovers it
+      // afterwards instead of asking the parent to re-enrol.
+      if (request.method === 'GET' && pathname === '/qbo/invoice-link') {
+        requireAdmin(url, env);
+        if (!qboConfigured(env)) return text(QBO_NOT_CONFIGURED, 503);
+        const id = url.searchParams.get('id');
+        if (!id) return json({ error: 'Pass ?id= with the QuickBooks invoice id.' }, 400);
+        const link = await getInvoiceLink(env, id);
+        return json({ id, payLink: link });
+      }
       // Voids rather than deletes: the invoice stops counting as owed, which is
       // the actual problem, while staying in the books with the numbering
       // intact. If Katie wants them gone entirely that is a decision for her, in
@@ -354,6 +379,12 @@ export default {
       console.error(`Unhandled error on ${pathname}:`, err?.message ?? err);
       return text('Internal error', 500);
     }
+  },
+
+  // Runs on the cron in wrangler.jsonc — see sweepAwaitingPayments for what it
+  // actually does (payment reminder, then hold release).
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(sweepAwaitingPayments(env));
   }
 } satisfies ExportedHandler<Env>;
 
@@ -465,19 +496,26 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
     // The real total, not the per-day rate. Safe to compute from the requested
     // days because the claim below is all-or-nothing: either every day asked for
     // is held, or the row is deleted and nothing is charged.
-    price_quoted: priceFor(program, option, days.length)
+    price_quoted: priceFor(program, option, days.length),
+    // A day's place is claimed below before QuickBooks knows anything, so it
+    // cannot be held forever on the strength of a form submission alone —
+    // scheduled() checks QuickBooks directly once this passes, and releases
+    // the place back to the pool if payment never landed.
+    hold_expires_at: new Date(Date.now() + HOLD_MINUTES * 60_000).toISOString()
   };
 
   await env.DB
     .prepare(
       `INSERT INTO enrollments
        (id, parent_name, parent_email, phone, player_name, age_group, program,
-        payment_status, notes, account_id, child_id, price_option, price_quoted)
-       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)`
+        payment_status, notes, account_id, child_id, price_option, price_quoted,
+        hold_expires_at)
+       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)`
     )
     .bind(row.id, row.parent_name, row.parent_email, row.phone, row.player_name,
           row.age_group, row.program, row.payment_status, row.notes,
-          row.account_id, row.child_id, row.price_option, row.price_quoted)
+          row.account_id, row.child_id, row.price_option, row.price_quoted,
+          row.hold_expires_at)
     .run();
 
   // Places are taken before QuickBooks is told anything, because a full class is
@@ -555,6 +593,107 @@ async function handleEnroll(request: Request, env: Env, ctx: ExecutionContext): 
     // bookInQuickBooks where sending them anywhere would risk a double charge.
     payUrl: payment.payUrl
   });
+}
+
+/**
+ * The two things that happen to an unpaid hold while it's still alive, run
+ * together because both start the same way — asking QuickBooks whether it's
+ * actually still unpaid, rather than trusting D1's payment_status, since a
+ * payment could have landed seconds before this tick fires:
+ *
+ *   REMINDER_MINUTES unpaid → email the parent their own payment link once
+ *     (reminder_sent_at records that so it isn't repeated next tick).
+ *   HOLD_MINUTES unpaid → release the day(s) back to the pool, void the
+ *     invoice if there is one, mark the row 'abandoned', tell the office.
+ *
+ * One enrollment's failure (a stale QuickBooks token, a network blip) is
+ * reported and skipped rather than aborting the sweep — everything else due
+ * this tick still needs settling.
+ */
+async function sweepAwaitingPayments(env: Env): Promise<void> {
+  const rows = await env.DB
+    .prepare(
+      `SELECT id, created_at, program, player_name, parent_name, parent_email,
+              qbo_invoice_id, hold_expires_at, reminder_sent_at
+         FROM enrollments
+        WHERE payment_status = 'awaiting_payment'
+          AND hold_expires_at IS NOT NULL`
+    )
+    .all<{
+      id: string; created_at: string; program: string; player_name: string | null;
+      parent_name: string | null; parent_email: string | null; qbo_invoice_id: string | null;
+      hold_expires_at: string; reminder_sent_at: string | null;
+    }>();
+
+  const now = Date.now();
+  for (const e of rows.results ?? []) {
+    try {
+      let payLink: string | null = null;
+      if (e.qbo_invoice_id && qboConfigured(env)) {
+        const inv = await getInvoice(env, e.qbo_invoice_id);
+        if (inv.paid) {
+          await env.DB
+            .prepare("UPDATE enrollments SET payment_status = 'paid', hold_expires_at = NULL WHERE id = ?1")
+            .bind(e.id)
+            .run();
+          continue;
+        }
+        payLink = inv.payLink;
+      }
+
+      // Held == created + HOLD_MINUTES, by construction (see handleEnroll) —
+      // recomputing from hold_expires_at rather than adding a second constant
+      // in two places that could drift apart.
+      const heldAt = new Date(e.hold_expires_at).getTime() - HOLD_MINUTES * 60_000;
+      const ageMinutes = (now - heldAt) / 60_000;
+
+      if (ageMinutes < HOLD_MINUTES) {
+        if (ageMinutes >= REMINDER_MINUTES && !e.reminder_sent_at && e.parent_email) {
+          await notifyPaymentReminder(env, {
+            parent_name: e.parent_name, parent_email: e.parent_email,
+            player_name: e.player_name, program: e.program, payLink
+          });
+          await env.DB
+            .prepare('UPDATE enrollments SET reminder_sent_at = datetime(?2) WHERE id = ?1')
+            .bind(e.id, new Date(now).toISOString())
+            .run();
+        }
+        continue;
+      }
+
+      const dayRows = await env.DB
+        .prepare(
+          `SELECT s.weekday FROM enrollment_sessions es
+             JOIN program_sessions s ON s.id = es.session_id
+            WHERE es.enrollment_id = ?1
+            ORDER BY s.sort, s.weekday`
+        )
+        .bind(e.id)
+        .all<{ weekday: string }>();
+      const days = (dayRows.results ?? []).map((d) => d.weekday);
+
+      await env.DB.prepare('DELETE FROM enrollment_sessions WHERE enrollment_id = ?1').bind(e.id).run();
+
+      if (e.qbo_invoice_id && qboConfigured(env)) {
+        try {
+          await voidInvoice(env, e.qbo_invoice_id);
+        } catch (err) {
+          // Left unpaid and un-voided rather than blocking the release — the
+          // office can void it by hand later; the seat matters more right now.
+          console.error('Could not void expired-hold invoice', e.qbo_invoice_id, err);
+        }
+      }
+
+      await env.DB
+        .prepare("UPDATE enrollments SET payment_status = 'abandoned', hold_expires_at = NULL WHERE id = ?1")
+        .bind(e.id)
+        .run();
+
+      await notifyHoldExpired(env, { ...e, days, invoiceId: e.qbo_invoice_id });
+    } catch (err) {
+      console.error('sweepAwaitingPayments failed for enrollment', e.id, err);
+    }
+  }
 }
 
 /** How a parent gets to a card page, and what the office has to do about it. */
@@ -1014,7 +1153,13 @@ async function handleInquiry(request: Request, env: Env, ctx: ExecutionContext):
     // only for 'contact', so a parent claiming a trial could ask to be phoned and
     // the office would never see it — and the "asked for a call but left no
     // number" check below could not fire either.
-    contact_preference: pref
+    contact_preference: pref,
+    // free_trial only — a 'contact' inquiry has no child, so the question does
+    // not apply. Anything other than the two values the form actually offers
+    // is dropped rather than stored, same reasoning as email_to above.
+    has_experience: kind === 'free_trial' && (body.has_experience === 'yes' || body.has_experience === 'no')
+      ? body.has_experience
+      : null
   };
 
   // Asking to be phoned back without leaving a number would strand the office.
@@ -1026,12 +1171,12 @@ async function handleInquiry(request: Request, env: Env, ctx: ExecutionContext):
     .prepare(
       `INSERT INTO inquiries
        (id, kind, name, email, phone, player_name, age_group, message,
-        email_to, zip, contact_preference)
-       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)`
+        email_to, zip, contact_preference, has_experience)
+       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)`
     )
     .bind(record.id, record.kind, record.name, record.email, record.phone,
           record.player_name, record.age_group, record.message,
-          record.email_to, record.zip, record.contact_preference)
+          record.email_to, record.zip, record.contact_preference, record.has_experience)
     .run();
 
   ctx.waitUntil(notifyInquiry(env, record));

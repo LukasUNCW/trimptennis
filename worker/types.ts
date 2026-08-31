@@ -7,6 +7,7 @@ export interface Env {
   // vars (wrangler.jsonc)
   QBO_SANDBOX: string;
   NOTIFY_EMAIL: string;
+  JOHN_EMAIL: string;
   FROM_EMAIL: string;
   SITE_NAME: string;
 
