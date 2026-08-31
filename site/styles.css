@@ -101,6 +101,10 @@ section{padding:84px 0}
 .prog-media::before,.prog-media::after{content:"";position:absolute;background:rgba(255,255,255,.4)}
 .prog-media::before{left:18px;top:0;bottom:0;width:2px}
 .prog-media::after{left:18px;bottom:26px;height:2px;width:46%}
+/* Once a card has a real photo, the placeholder's decorative lines would sit
+   as stray white strokes on top of it, so they're dropped for that card. */
+.prog-media.has-photo::before,.prog-media.has-photo::after{display:none}
+.prog-media img{width:100%;height:100%;object-fit:cover;display:block}
 .prog-media .photo-hint{position:absolute;inset:0;display:grid;place-items:center;color:rgba(255,255,255,.65);font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase}
 .prog-media.m1{background:var(--teal)}
 .prog-media.m2{background:var(--navy-2)}

@@ -26,6 +26,10 @@ const OUT = 'site/images';
 // wide on desktop and near-viewport-width on mobile; the staff cards ~264px.
 const JOBS = [
   { src: 'ball-crew-2025.jpg', out: 'ball-crew-2025',       widths: [800, 1600] },
+  // homepage program card, ~358px in the 3-up grid (1180px wrap, 24px gaps),
+  // full mobile width once it stacks to one column — 400 plus retina 800
+  // covers both without upscaling past the source.
+  { src: 'shredders-clinic.jpg', out: 'shredders-clinic',   widths: [400, 800], ratio: 16/10 },
   // sits in the Elite page's ~410px aside column, so 440 plus a retina 880
   { src: 'elite-squad-2025.jpg', out: 'elite-squad-2025',   widths: [440, 880] },
   // full content width on /juniors (~1124px), so 800 for mobile and 1600 above
