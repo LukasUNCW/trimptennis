@@ -45,6 +45,7 @@
         <span class="field-label">Which days? <span class="req">*</span></span>
         <div class="day-picker" id="ef-days"></div>
         <p class="field-note" id="ef-days-note"></p>
+        <p class="field-note">If we don't have at least 5 kids enrolled in each class we cannot run the session.</p>
       </div>
 
       <div class="field" id="ef-saved-wrap" hidden>
@@ -101,8 +102,9 @@
     <dl class="review-list" id="ef-reviewList"></dl>
     <a class="btn btn-teal" id="ef-pay" href="#">Continue to payment →</a>
     <p class="enroll-note">Payment is handled by QuickBooks Payments, provided by
-      Intuit Payments Inc. — card details never touch this site. The enrolment is
-      already saved, so if you don't finish now the office will follow up.</p>
+      Intuit Payments Inc. — card details never touch this site. Your place is
+      held for 45 minutes — if payment isn't completed by then, it's released
+      back to the class so please finish now if you can.</p>
   </div>
 
   <div class="enroll-done" id="enrollDone" hidden>

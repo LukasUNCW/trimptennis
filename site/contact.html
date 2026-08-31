@@ -77,6 +77,12 @@
         </div>
       </div>
 
+      <fieldset class="field radio-set" id="cf-experience-field" hidden>
+        <legend>Does your child have any tennis experience?</legend>
+        <label class="radio"><input type="radio" name="has_experience" value="yes"> Yes</label>
+        <label class="radio"><input type="radio" name="has_experience" value="no" checked> No / first time</label>
+      </fieldset>
+
       <div class="field">
         <label for="cf-name" id="cf-name-label">Name <span class="req">*</span></label>
         <input id="cf-name" name="name" maxlength="100" autocomplete="name" placeholder="Your first and last name" required>
@@ -230,20 +236,27 @@
 
   if (TRIAL) {
     document.title = 'Claim a free trial — Seahawks Tennis Academy';
-    document.getElementById('cf-eyebrow').textContent = 'Free trial · Kids clinics';
+    document.getElementById('cf-eyebrow').textContent = 'Free trial · Shredder\'s & Elite Academy';
     document.getElementById('cf-heading').textContent = 'Claim a free trial';
     document.getElementById('cf-lede').textContent =
-      'Every kids clinic starts with a free session. Tell us who is coming and the office will find a day that works.';
+      "This free trial class is for players looking to join Shredder's or the Elite Academy. " +
+      'Tell us who is coming and the office will find a day that works.';
     // Routed to Junior Programs automatically — a parent claiming a trial should
     // not have to pick a department.
     document.getElementById('cf-topic-field').hidden = true;
     topicSel.required = false;
     document.getElementById('cf-child-row').hidden = false;
+    document.getElementById('cf-experience-field').hidden = false;
     document.getElementById('cf-name-label').innerHTML =
       'Your name <span class="req">*</span>';
     // Somebody claiming a trial usually has nothing to say, and a required empty
-    // box is just a hurdle.
-    document.getElementById('cf-message-label').textContent = 'Anything we should know? (optional)';
+    // box is just a hurdle. John's request, 2026-08-17: since Shredder's/Elite
+    // need to know where to place a trial player, prompt for a skill level
+    // explicitly rather than leaving it as a generic open-ended question.
+    document.getElementById('cf-message-label').textContent =
+      "Player's tennis experience (optional)";
+    document.getElementById('cf-message').placeholder =
+      'Beginner, intermediate, or advanced — and anything else we should know.';
     document.getElementById('cf-message').required = false;
     submitBt.textContent = 'Claim my free trial';
   }
@@ -303,7 +316,11 @@
       zip: val('cf-zip'),
       contact_preference: pref,
       message: val('cf-message'),
-      ...(TRIAL ? { player_name: val('cf-player'), age_group: val('cf-age') } : {})
+      ...(TRIAL ? {
+        player_name: val('cf-player'),
+        age_group: val('cf-age'),
+        has_experience: form.querySelector('input[name="has_experience"]:checked')?.value ?? 'no'
+      } : {})
     };
 
     if (!body.name.trim())              return showErr('Please enter your name.');
